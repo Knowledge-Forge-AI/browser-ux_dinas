@@ -1,0 +1,4 @@
+interface:
+  display_name: "Browser Hardening Policy"
+  short_description: "Manage browser hardening and allowlists"
+  default_prompt: "Use $browser-hardening-policy to evaluate or adjust browser hardening exceptions safely."

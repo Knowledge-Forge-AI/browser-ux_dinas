@@ -1,0 +1,322 @@
+{
+  "schema": "browser-ux-apple-proton-catalog-v1",
+  "catalogMetadata": {
+    "observedDate": "2026-10-07",
+    "observedReason": "Apple and Proton extension catalog qualification for Chrome, Firefox, Vivaldi, and Floorp on macOS",
+    "deliveryStage": "apple-proton-delivery1",
+    "targetHost": "example-current-mac",
+    "targetBrowsers": [
+      "chrome",
+      "firefox",
+      "vivaldi",
+      "floorp"
+    ],
+    "excludedTargets": [
+      "brave",
+      "brave-youtube",
+      "safari"
+    ],
+    "predecessorHostUnchanged": "example-previous-mac"
+  },
+  "extensions": {
+    "proton-pass": {
+      "product": "Proton Pass: Free Password Manager",
+      "publisher": "Proton AG",
+      "slug": "proton-pass",
+      "vendorUrl": "https://proton.me/pass",
+      "listings": {
+        "cws": "https://chromewebstore.google.com/detail/proton-pass-free-password/ghmbeldphafepmbegfdlkpapadhbakde",
+        "amo": "https://addons.mozilla.org/en-US/firefox/addon/proton-pass/"
+      },
+      "chrome": {
+        "id": "ghmbeldphafepmbegfdlkpapadhbakde",
+        "observedVersion": "1.41.1",
+        "updateRoute": "https://clients2.google.com/service/update2/crx",
+        "evidenceHash": "sha256:b70ce225df9e84d6a781a804f04bae33630056604882cccacc3aa3b77d64903b",
+        "permissions": [
+          "activeTab",
+          "alarms",
+          "offscreen",
+          "scripting",
+          "storage",
+          "unlimitedStorage",
+          "webNavigation",
+          "webRequest"
+        ],
+        "optionalPermissions": [
+          "clipboardRead",
+          "clipboardWrite",
+          "nativeMessaging",
+          "privacy",
+          "webRequestAuthProvider"
+        ],
+        "hostPermissions": [
+          "http://*/*",
+          "https://*/*"
+        ]
+      },
+      "gecko": {
+        "id": "78272b6fa58f4a1abaac99321d503a20@proton.me",
+        "amoAddonId": 2785662,
+        "observedVersion": "1.41.1",
+        "strictMinVersion": "109.0",
+        "installRoute": "https://addons.mozilla.org/firefox/downloads/latest/proton-pass/latest.xpi",
+        "resolvedDownloadUrl": "https://addons.mozilla.org/firefox/downloads/file/5055526/proton_pass-1.41.1.xpi",
+        "evidenceHash": "sha256:f67c5836e5eff3f82ac38e03a7b27d30b84dbb5246f74bb21b8b5bb15d3cd936",
+        "permissions": [
+          "activeTab",
+          "alarms",
+          "scripting",
+          "storage",
+          "unlimitedStorage",
+          "webNavigation",
+          "webRequest",
+          "webRequestBlocking"
+        ],
+        "optionalPermissions": [
+          "clipboardRead",
+          "clipboardWrite",
+          "nativeMessaging",
+          "privacy",
+          "webRequestAuthProvider"
+        ],
+        "hostPermissions": [
+          "http://*/*",
+          "https://*/*"
+        ]
+      },
+      "caveats": {
+        "nativeHelper": "Optional nativeMessaging permission for communication with the Proton Pass desktop app; standalone browser extension operates independently without requiring desktop app or host mutation.",
+        "coexistence": "KeePassXC remains primary and built-in stores stay off. Preserve existing settings. First-install trial remains signed out until attended settings disable competing autofill/autosave prompts; use supported manual controls where available. No vault import or automatic passkey-provider change.",
+        "vpn": "None (password manager only).",
+        "attendedGaps": "Initial sign-in requires interactive user authentication with Proton account credentials and 2FA if enabled. Extension is deployed unattended via policy, but authentication state is operator-attended.",
+        "toolbar": "Attended browser toolbar pin through the browser extension menu; preserve existing layout and choices."
+      },
+      "idEvidence": {
+        "observedOn": "2026-10-07",
+        "reason": "Requested official publisher build; AMO metadata GUID matched signed XPI manifest; CWS vendor/store identity and official CRX update route",
+        "amoMetadataUrl": "https://addons.mozilla.org/api/v5/addons/addon/proton-pass/",
+        "geckoSignature": "Official AMO signed XPI with metadata/package SHA256 recorded; browser signing enforcement retained"
+      },
+      "name": "Proton Pass"
+    },
+    "proton-vpn": {
+      "product": "Proton VPN: Fast & Secure",
+      "publisher": "Proton AG",
+      "slug": "proton-vpn-firefox-extension",
+      "vendorUrl": "https://protonvpn.com/",
+      "listings": {
+        "cws": "https://chromewebstore.google.com/detail/proton-vpn-fast-secure/jplgfhpmjnbigmhklmmbgecoobifkmpa",
+        "amo": "https://addons.mozilla.org/en-US/firefox/addon/proton-vpn-firefox-extension/"
+      },
+      "chrome": {
+        "id": "jplgfhpmjnbigmhklmmbgecoobifkmpa",
+        "observedVersion": "1.3.6",
+        "updateRoute": "https://clients2.google.com/service/update2/crx",
+        "evidenceHash": "sha256:bd3c0f5e404a94e034154cda4130f5865745ccc7afb527f8d481e5db392641ad",
+        "permissions": [
+          "idle",
+          "notifications",
+          "privacy",
+          "proxy",
+          "scripting",
+          "storage",
+          "tabs",
+          "webRequest",
+          "webRequestAuthProvider"
+        ],
+        "optionalPermissions": [],
+        "hostPermissions": [
+          "ftp://*/",
+          "http://*/",
+          "https://*/",
+          "ws://*/",
+          "wss://*/"
+        ]
+      },
+      "gecko": {
+        "id": "vpn@proton.ch",
+        "amoAddonId": 2786243,
+        "observedVersion": "1.3.6",
+        "strictMinVersion": "109.0",
+        "installRoute": "https://addons.mozilla.org/firefox/downloads/latest/proton-vpn-firefox-extension/latest.xpi",
+        "resolvedDownloadUrl": "https://addons.mozilla.org/firefox/downloads/file/4951998/proton_vpn_firefox_extension-1.3.6.xpi",
+        "evidenceHash": "sha256:552281ee274aeece0f83052f2fc6da3b526021b6739c3decb0390a9b5efc37a3",
+        "permissions": [
+          "activeTab",
+          "idle",
+          "notifications",
+          "privacy",
+          "scripting",
+          "storage",
+          "tabs",
+          "webRequest",
+          "webRequestBlocking"
+        ],
+        "optionalPermissions": [
+          "proxy"
+        ],
+        "hostPermissions": [
+          "ftp://*/",
+          "http://*/",
+          "https://*/",
+          "ws://*/",
+          "wss://*/"
+        ]
+      },
+      "caveats": {
+        "nativeHelper": "Browser proxy extension; no native helper daemon or host mutation required. Does not modify host routing tables or system VPN tunnels.",
+        "coexistence": "Proxy ownership must be checked per browser. No new auto-connect, kill switch, system proxy, host VPN or DNS changes. Normal browsing remains operational if unavailable.",
+        "vpn": "Browser-scoped proxy tunnel. The previously observed Vivaldi UI references the official CWS identity; source reference is not installed-instance proof. Reuse the attended-confirmed usable integrated instance or use the official single-instance store route. A different integrated identity requires Vivaldi-only reconciliation.",
+        "attendedGaps": "VPN activation and server selection require interactive Proton login and user initiation. No connection is established automatically without user interaction.",
+        "toolbar": "Attended browser toolbar pin through the browser extension menu; preserve existing layout and choices.",
+        "dns": {
+          "status": "RECONCILIATION_PENDING",
+          "vendorSource": "https://protonvpn.com/support/browser-extensions",
+          "guidance": "Vendor documents Firefox network.trr.mode=3 caveat; maintained DNSOverHTTPS.Enabled=false remains unchanged. Installation is not proof of DNS privacy."
+        },
+        "trafficScope": "Only the browser extension traffic; no protection claim for other browsers/apps, Proton Bridge or Vivaldi Mail raw IMAP/SMTP. Preserve localhost/LAN/development; any optional attended connection test restores previous state."
+      },
+      "idEvidence": {
+        "observedOn": "2026-10-07",
+        "reason": "Requested official publisher build; AMO metadata GUID matched signed XPI manifest; CWS vendor/store identity and official CRX update route",
+        "amoMetadataUrl": "https://addons.mozilla.org/api/v5/addons/addon/proton-vpn-firefox-extension/",
+        "geckoSignature": "Official AMO signed XPI with metadata/package SHA256 recorded; browser signing enforcement retained"
+      },
+      "name": "Proton VPN"
+    },
+    "icloud-passwords": {
+      "product": "iCloud Passwords",
+      "publisher": "Apple Inc.",
+      "slug": "icloud-passwords",
+      "vendorUrl": "https://www.apple.com/icloud/",
+      "supportUrl": "https://support.apple.com/guide/passwords/mchlf7ac261e/mac",
+      "listings": {
+        "cws": "https://chromewebstore.google.com/detail/icloud-passwords/pejdijmoenmkgeppbflobdenhhabjlaj",
+        "amo": "https://addons.mozilla.org/en-US/firefox/addon/icloud-passwords/"
+      },
+      "chrome": {
+        "id": "pejdijmoenmkgeppbflobdenhhabjlaj",
+        "observedVersion": "3.4.0",
+        "updateRoute": "https://clients2.google.com/service/update2/crx",
+        "evidenceHash": "sha256:610ddd342cab1f66c317da9a24206839829a7ba10376afbb21c94781c3d84f26",
+        "permissions": [
+          "contextMenus",
+          "declarativeContent",
+          "nativeMessaging",
+          "privacy",
+          "scripting",
+          "storage",
+          "webNavigation"
+        ],
+        "optionalPermissions": [],
+        "hostPermissions": [
+          "*://*/*"
+        ]
+      },
+      "gecko": {
+        "id": "password-manager-firefox-extension@apple.com",
+        "amoAddonId": 2819247,
+        "observedVersion": "3.3.0",
+        "strictMinVersion": "128.0",
+        "installRoute": "https://addons.mozilla.org/firefox/downloads/latest/icloud-passwords/latest.xpi",
+        "resolvedDownloadUrl": "https://addons.mozilla.org/firefox/downloads/file/4747750/icloud_passwords-3.3.0.xpi",
+        "evidenceHash": "sha256:9f89fbfb0b052453437c6eec8940c62314a9fc24fd31bffcbcfcfb66c106e933",
+        "permissions": [
+          "contextMenus",
+          "nativeMessaging",
+          "privacy",
+          "storage",
+          "tabs",
+          "webNavigation"
+        ],
+        "optionalPermissions": [],
+        "hostPermissions": []
+      },
+      "caveats": {
+        "nativeHelper": "Requires the vendor-supported Apple native helper on macOS Sonoma or later. Inventory per-user and system registrations and executable presence; no fixed helper filesystem location is assumed. Native handshake, caller acceptance and pairing remain separate attended checks.",
+        "coexistence": "KeePassXC remains primary. No claimed three-way provider priority. Preserve existing settings; pair only attended and decide the supported extension toggle if competing prompts occur. No private database edits or vault import.",
+        "vpn": "None (password manager only).",
+        "attendedGaps": "First-time extension connection requires entry of a 6-digit verification code or biometric approval matching the macOS Keychain prompt. On Floorp or unofficial Gecko builds, Apple native messaging host may refuse connection if code signature validation restricts host callers.",
+        "toolbar": "Attended browser toolbar pin through the browser extension menu; preserve existing layout and choices."
+      },
+      "idEvidence": {
+        "observedOn": "2026-10-07",
+        "reason": "Requested official publisher build; AMO metadata GUID matched signed XPI manifest; CWS vendor/store identity and official CRX update route",
+        "amoMetadataUrl": "https://addons.mozilla.org/api/v5/addons/addon/icloud-passwords/",
+        "geckoSignature": "Official AMO signed XPI with metadata/package SHA256 recorded; browser signing enforcement retained"
+      },
+      "name": "iCloud Passwords"
+    }
+  },
+  "updatePolicy": {
+    "observedVersionsAreAdmissionPins": false,
+    "policyRoutes": "Official CWS stable IDs and signed AMO latest XPI routes; normal vendor updates permitted",
+    "signingEnforcement": "RETAINED",
+    "evidenceProvenance": "Gemini bounded catalogue worker official AMO metadata and package manifests; parent verified identities/contracts and public vendor sources; runtime install pending",
+    "trialInstallationMode": "normal_installed; default-on with supported user disable toggle; existing required/default-on baseline entries unchanged",
+    "extensionLifecycle": "Configuration backups exclude extension data. Releasing install policy or restoring older plists can cause browser-managed removal, reinstallation or pairing loss. Do not promise profile-data preservation from configuration rollback.",
+    "policySources": [
+      "https://support.google.com/chrome/a/answer/9867568?hl=en",
+      "https://firefox-admin-docs.mozilla.org/reference/policies/extensionsettings/",
+      "https://github.com/chromium/chromium/blob/main/components/policy/resources/templates/policy_definitions/Extensions/ExtensionInstallForcelist.yaml"
+    ]
+  },
+  "otherEcosystemFindings": [
+    {
+      "products": [
+        "Proton Mail",
+        "Proton Calendar",
+        "Proton Drive"
+      ],
+      "status": "NOT_FOUND_IN_OFFICIAL_CATALOG",
+      "sources": [
+        "https://proton.me/mail/download",
+        "https://proton.me/calendar/download",
+        "https://proton.me/drive/download"
+      ],
+      "automaticInstall": false
+    },
+    {
+      "products": [
+        "iCloud Mail",
+        "iCloud Calendar",
+        "iCloud Drive"
+      ],
+      "status": "NOT_FOUND_IN_OFFICIAL_CATALOG",
+      "sources": [
+        "https://support.apple.com/guide/icloud/introduction-to-icloud-mm74e822f6de/icloud"
+      ],
+      "automaticInstall": false
+    },
+    {
+      "products": [
+        "Proton Authenticator"
+      ],
+      "status": "NOT_FOUND_IN_OFFICIAL_CATALOG",
+      "nativeApp": "https://proton.me/authenticator",
+      "automaticInstall": false,
+      "note": "Native app is separate from plan-dependent Pass TOTP; never move the account sole second factor into its dependent vault."
+    },
+    {
+      "products": [
+        "SimpleLogin"
+      ],
+      "status": "OPTIONAL_OFFICIAL_PROTON_FAMILY_ALIAS_EXTENSION",
+      "sources": [
+        "https://simplelogin.io/"
+      ],
+      "automaticInstall": false
+    },
+    {
+      "products": [
+        "iCloud Bookmarks"
+      ],
+      "status": "WINDOWS_COMPANION_NOT_MACOS_FOUR_BROWSER_SYNC",
+      "sources": [
+        "https://support.apple.com/guide/icloud-windows/bookmarks-icw4a50de3c3/icloud"
+      ],
+      "automaticInstall": false
+    }
+  ]
+}

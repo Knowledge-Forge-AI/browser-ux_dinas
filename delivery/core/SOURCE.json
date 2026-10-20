@@ -1,0 +1,53 @@
+{
+  "schema": "browser-ux-core-delivery-source-v1",
+  "owner": "core",
+  "original": {
+    "relativePath": "modules/browsers.nix",
+    "sha256": "144ad11e083bca4d530439ed8f1af8529b86d05669e829450b6e410f7b5fbce6",
+    "sizeBytes": 29385,
+    "observedCheckoutHead": "0000000000000000000000000000000000000005",
+    "releaseRef": "refs/heads/main"
+  },
+  "selectedSources": {
+    "publicCompositionLockedCore": "0000000000000000000000000000000000000005",
+    "activePrivateLockedCore": "0000000000000000000000000000000000000003",
+    "checkoutIsNotActivePin": true
+  },
+  "candidate": {
+    "modulePath": "delivery/core/modules-browsers.nix",
+    "moduleSha256": "5bc7d9857b1d8b1f526c8c4c669b1edb25b24d4982ec9f19c516406a21a0e166",
+    "patchPath": "delivery/core/browsers.patch",
+    "patchSha256": "f7bbcdaf1068aafe3ce8a99ad49820a6bed2d5e59bef8b2423705e1cc7368ba0"
+  },
+  "mechanicalEndpoints": [
+    "vivaldi.managedPreferences",
+    "vivaldi.externalExtensions",
+    "vivaldi.nativeMessagingHosts",
+    "floorp.policies",
+    "replacementPolicyOwnership"
+  ],
+  "singleWriter": "programs.browserBaseline owns policy/system native targets and per-browser attended scripts; KeePassXC owns the Vivaldi per-user native registration. Browser UX does not contribute that core native endpoint.",
+  "vivaldi": {
+    "domain": "com.vivaldi.Vivaldi",
+    "policyTarget": "/Library/Managed Preferences/com.vivaldi.Vivaldi.plist",
+    "nativeTarget": "$PRIMARY_HOME/Library/Application Support/Vivaldi/NativeMessagingHosts/org.keepassxc.keepassxc_browser.json",
+    "nativeEvidence": "Official KeePassXC NativeMessageInstaller.cpp macOS target concatenated with QDir.homePath; no invented system root",
+    "source": "https://github.com/keepassxreboot/keepassxc/blob/develop/src/browser/NativeMessageInstaller.cpp",
+    "observedVersion": "8.2.4133.84",
+    "nativeOwner": "KeePassXC NativeMessageInstaller; preserved/attended setup if absent; no rollout writer",
+    "nativeDelivery": "ATTENDED_KEEPASSXC_SETTING_AND_SYNTHETIC_READBACK_PENDING"
+  },
+  "floorp": {
+    "domain": "app.floorp.Floorp",
+    "policyTarget": "/Library/Preferences/app.floorp.Floorp.plist",
+    "policyEvidence": "Installed omni.ja macOSPoliciesParser plus Gecko NSUserDefaults reader; effective policy readback pending",
+    "nativeReader": "shared Mozilla registration, single existing writer",
+    "nativeEvidence": "Installed omni.ja NativeManifests.sys.mjs rewrites Floorp to Mozilla",
+    "observedVersion": "12.19.0@157.0"
+  },
+  "compatibility": "Legacy Chrome/Firefox fixture preserved. Replacement policy ownership defaults false on unselected hosts. Explicit current-host ownership retracts replacement plists and known external manifests on endpoint disable. KeePassXC-owned per-user registrations remain outside this rollout.",
+  "runtime": "UNVERIFIED",
+  "directoryMetadata": "Existing parent metadata preserved; approved eight-target rollout performs no per-user native registration write",
+  "attendedTargetCount": 8,
+  "attendedBrowserSelection": "Core-generated per-browser scripts; shared Mozilla registration one owner"
+}

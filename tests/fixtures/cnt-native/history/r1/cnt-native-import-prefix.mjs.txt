@@ -1,0 +1,63 @@
+// Partial native control-flow probe, NOT a faithful full importer harness.
+// Input is verified package source on stdin, never a live profile or storage.
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import vm from 'node:vm';
+
+const source = readFileSync(0, 'utf8');
+assert.equal(createHash('sha256').update(source).digest('hex'),
+  'a751464b910f968d1514b6e4eb2438be44a0c59b81067efee063f8726ca73efa');
+function between(start, end) {
+  assert.equal(source.split(start).length, 2, `nonunique start: ${start}`);
+  const offset = source.indexOf(start);
+  const limit = source.indexOf(end, offset);
+  assert.ok(limit > offset);
+  return source.slice(offset, limit);
+}
+// Byte-preserving slices: no function-body edits or serializer substitutes.
+const importer = between('restore_back_up=({input:e},t)=>', ';restore_back_up_react=');
+const deletion = between('delete_all_backgrounds=({show_protecting_screen:',
+  ';delete_all_backgrounds_transition_end_callback=');
+const hashes = [importer, deletion].map(s => createHash('sha256').update(s).digest('hex'));
+
+async function probe(files, errorName) {
+  const events = [];
+  const context = vm.createContext({
+    // Error wrappers propagate failures to tests; native ribbon/reporting is omitted.
+    err: f => f(), err_async: async f => await f(),
+    // Substitute only; equivalence to the native minified helper is unproven.
+    n: value => value !== undefined && value !== null,
+    XH: { show: () => events.push('show'), hide: () => events.push('hide') },
+    Gq: { set_backgrounds_section_content_visibility: ({ is_visible }) => {
+      assert.equal(is_visible, false); events.push('hide-backgrounds');
+    } },
+    h: { Error: { print_error_code: () => {} } },
+    // File IO host boundary: native JSON.parse remains inside the unedited importer.
+    Ae: { BackUp: { read: async ({ blob }) => {
+      events.push(`read:${blob.name}`); return blob.text;
+    } } },
+    files,
+  });
+  vm.runInContext(`globalThis.Zt = new (class { ${deletion} });
+    globalThis.Wq = new (class { ${importer} });`, context, { timeout: 1000 });
+  let error;
+  try {
+    await vm.runInContext('Wq.restore_back_up({}, {target:{files}})', context, { timeout: 1000 });
+  } catch (caught) { error = caught.name; }
+  assert.equal(error, errorName);
+  assert.equal(context.Zt.deletion_reason, 'delete_all_backgrounds');
+  assert.equal(events[1], 'hide-backgrounds');
+  return { events, error: error ?? null, deletion_requested: true };
+}
+const cases = {
+  empty_selection: await probe([]),
+  missing_first_part: await probe([{ name: 'Part 2.json', text: '{}' }]),
+  malformed_json: await probe([{ name: 'Part 1.json', text: '{' }], 'SyntaxError'),
+  missing_chunks: await probe([{ name: 'Part 1.json', text: '{}' }], 'TypeError'),
+};
+assert.ok(!cases.missing_first_part.events.some(e => e.startsWith('read:')));
+assert.ok(cases.malformed_json.events.indexOf('hide-backgrounds') <
+  cases.malformed_json.events.indexOf('read:Part 1.json'));
+console.log(JSON.stringify({ cases, extracted_sha256: hashes,
+  scope: 'native import prefix and deletion scheduling only; no persistence or round trip' }));

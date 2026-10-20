@@ -1,0 +1,47 @@
+{
+  "manifest_version": 3,
+  "name": "Brave YouTube Theme",
+  "version": "1.0",
+  "description": "Nix-managed local theme for Brave YouTube.",
+  "theme": {
+    "images": {
+      "theme_frame": "theme_frame.png",
+      "theme_toolbar": "theme_toolbar.png",
+      "theme_ntp_background": "theme_ntp_background.png"
+    },
+    "colors": {
+      "frame": [0, 0, 0],
+      "frame_inactive": [0, 0, 0],
+      "frame_incognito": [0, 0, 0],
+      "frame_incognito_inactive": [0, 0, 0],
+      "toolbar": [0, 0, 0],
+      "tab_text": [255, 255, 255],
+      "tab_background_text": [251, 188, 5],
+      "bookmark_text": [255, 255, 255],
+      "toolbar_button_icon": [255, 0, 0],
+      "toolbar_text": [255, 255, 255],
+      "toolbar_top_separator": [0, 0, 0],
+      "toolbar_bottom_separator": [0, 0, 0],
+      "toolbar_vertical_separator": [0, 0, 0],
+      "tab_background_separator": [52, 168, 83],
+      "omnibox_background": [32, 33, 36],
+      "omnibox_text": [232, 234, 237],
+      "omnibox_results_bg": [32, 33, 36],
+      "omnibox_results_text": [232, 234, 237],
+      "omnibox_results_url": [66, 133, 244],
+      "omnibox_security_chip_background": [32, 33, 36],
+      "ntp_background": [0, 0, 0],
+      "ntp_text": [255, 255, 255],
+      "ntp_link": [66, 133, 244],
+      "ntp_header": [255, 0, 0],
+      "button_background": [255, 0, 0]
+    },
+    "tints": {
+      "buttons": [0.0, 1.0, 0.5]
+    },
+    "properties": {
+      "ntp_background_alignment": "center",
+      "ntp_background_repeat": "no-repeat"
+    }
+  }
+}

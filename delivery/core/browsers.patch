@@ -1,0 +1,433 @@
+--- a/modules/browsers.nix
++++ b/modules/browsers.nix
+@@ -18,6 +18,10 @@
+   optFirefoxPoliciesPayload = options_.firefox.policiesJsonPayload;
+   optFirefoxPolicyDelivery = options_.firefox.policyDelivery;
+   optFirefoxNMH = options_.firefox.nativeMessagingHosts;
++  optVivaldiPreferences = options_.vivaldi.managedPreferences;
++  optVivaldiExtensions = options_.vivaldi.externalExtensions;
++  optVivaldiNMH = options_.vivaldi.nativeMessagingHosts;
++  optFloorpPolicies = options_.floorp.policies;
+ 
+   # Architecture and Seam Representation Rationale (Roadmap BUX2 / §3 & §5):
+   # - Option 2 Payload Model: For Firefox policies and external manifests, BUX2 provides
+@@ -198,7 +202,11 @@
+     ++ checkPriorityViolations optFirefoxPolicies
+     ++ checkPriorityViolations optFirefoxPoliciesPayload
+     ++ checkPriorityViolations optFirefoxNMH
+-    ++ checkSelectorPriorityViolations optFirefoxPolicyDelivery;
++    ++ checkSelectorPriorityViolations optFirefoxPolicyDelivery
++    ++ checkPriorityViolations optVivaldiPreferences
++    ++ checkPriorityViolations optVivaldiExtensions
++    ++ checkPriorityViolations optVivaldiNMH
++    ++ checkPriorityViolations optFloorpPolicies;
+ 
+   allDuplicateViolations =
+     checkDuplicateKeyViolations optChromePreferences
+@@ -206,12 +214,18 @@
+     ++ checkDuplicateKeyViolations optChromeNMH
+     ++ checkDuplicateKeyViolations optFirefoxPolicies
+     ++ checkDuplicatePayloadViolations optFirefoxPoliciesPayload
+-    ++ checkDuplicateKeyViolations optFirefoxNMH;
++    ++ checkDuplicateKeyViolations optFirefoxNMH
++    ++ checkDuplicateKeyViolations optVivaldiPreferences
++    ++ checkDuplicateKeyViolations optVivaldiExtensions
++    ++ checkDuplicateKeyViolations optVivaldiNMH
++    ++ checkDuplicateKeyViolations optFloorpPolicies;
+ 
+   allIdentifierViolations =
+     checkKeyFormatViolations optChromeExtensions "[a-p]{32}" "Chrome extension ID"
+     ++ checkKeyFormatViolations optChromeNMH "[a-zA-Z0-9_.-]+" "Chrome NativeMessagingHosts name"
+-    ++ checkKeyFormatViolations optFirefoxNMH "[a-zA-Z0-9_.-]+" "Firefox NativeMessagingHosts name";
++    ++ checkKeyFormatViolations optFirefoxNMH "[a-zA-Z0-9_.-]+" "Firefox NativeMessagingHosts name"
++    ++ checkKeyFormatViolations optVivaldiExtensions "[a-p]{32}" "Vivaldi extension ID"
++    ++ checkKeyFormatViolations optVivaldiNMH "[a-zA-Z0-9_.-]+" "Vivaldi NativeMessagingHosts name";
+ 
+   # 4. Legacy-vs-destination exclusivity check:
+   hasDefs = opt:
+@@ -230,11 +244,17 @@
+   hasExternalFirefoxNMH = hasDefs optFirefoxNMH;
+   hasExternalFirefoxDelivery =
+     optFirefoxPolicyDelivery.isDefined && (cfg.firefox.policyDelivery != "bundle");
++  hasExternalVivaldiPrefs = hasDefs optVivaldiPreferences;
++  hasExternalVivaldiExts = hasDefs optVivaldiExtensions;
++  hasExternalVivaldiNMH = hasDefs optVivaldiNMH;
++  hasExternalFloorpPolicies = hasDefs optFloorpPolicies;
+ 
+   hasExternalContribution =
+     hasExternalChromePrefs || hasExternalChromeExts || hasExternalChromeNMH
+     || hasExternalFirefoxPolicies || hasExternalFirefoxPayload || hasExternalFirefoxNMH
+-    || hasExternalFirefoxDelivery;
++    || hasExternalFirefoxDelivery
++    || hasExternalVivaldiPrefs || hasExternalVivaldiExts || hasExternalVivaldiNMH
++    || hasExternalFloorpPolicies;
+ 
+   legacyExclusivityViolations =
+     if cfg.legacyPolicyDefaults.enable && hasExternalContribution then
+@@ -292,7 +312,24 @@
+         }]
+       else [];
+ 
+-  # 8. Firefox null value check in macos-preferences mode:
++  # 8. Floorp reserved key check (EnterprisePoliciesEnabled is managed automatically by core):
++  floorpReservedKeyViolations =
++    let
++      defs = optFloorpPolicies.definitionsWithLocations or [];
++      hasReserved = builtins.any (d:
++        builtins.isAttrs d.value && (d.value ? EnterprisePoliciesEnabled)
++      ) defs;
++    in
++      if hasReserved then
++        [{
++          type = "reserved-key";
++          option = "programs.browserBaseline.floorp.policies.EnterprisePoliciesEnabled";
++          loc = [ "programs" "browserBaseline" "floorp" "policies" "EnterprisePoliciesEnabled" ];
++          message = "Key EnterprisePoliciesEnabled is reserved and managed automatically by the seam. It must not be set in programs.browserBaseline.floorp.policies.";
++        }]
++      else [];
++
++  # 9. Null value checks for macOS preference plist generators:
+   hasNullValues = val:
+     if val == null then
+       true
+@@ -319,6 +356,38 @@
+         }]
+       else [];
+ 
++  floorpNullValueViolations =
++    let
++      defs = optFloorpPolicies.definitionsWithLocations or [];
++      hasNull = builtins.any (d:
++        builtins.isAttrs d.value && hasNullValues d.value
++      ) defs;
++    in
++      if hasNull then
++        [{
++          type = "unsupported-null-value";
++          option = "programs.browserBaseline.floorp.policies";
++          loc = [ "programs" "browserBaseline" "floorp" "policies" ];
++          message = "programs.browserBaseline.floorp.policies contains null values, which are not supported by the macOS plist generator. Omit attributes or use explicit empty structures instead.";
++        }]
++      else [];
++
++  vivaldiNullValueViolations =
++    let
++      defs = optVivaldiPreferences.definitionsWithLocations or [];
++      hasNull = builtins.any (d:
++        builtins.isAttrs d.value && hasNullValues d.value
++      ) defs;
++    in
++      if hasNull then
++        [{
++          type = "unsupported-null-value";
++          option = "programs.browserBaseline.vivaldi.managedPreferences";
++          loc = [ "programs" "browserBaseline" "vivaldi" "managedPreferences" ];
++          message = "programs.browserBaseline.vivaldi.managedPreferences contains null values, which are not supported by the macOS plist generator. Omit attributes or use explicit empty structures instead.";
++        }]
++      else [];
++
+   guardViolations =
+     allPriorityViolations
+     ++ allDuplicateViolations
+@@ -327,7 +396,10 @@
+     ++ firefoxPayloadConflictViolations
+     ++ firefoxDeliveryPayloadViolations
+     ++ firefoxReservedKeyViolations
+-    ++ firefoxNullValueViolations;
++    ++ firefoxNullValueViolations
++    ++ floorpReservedKeyViolations
++    ++ floorpNullValueViolations
++    ++ vivaldiNullValueViolations;
+ 
+   # Effective contribution resolution
+   effectiveChromePreferences =
+@@ -402,6 +474,46 @@
+     else
+       {};
+ 
++  effectiveVivaldiPreferences =
++    if guardViolations != [] then
++      {}
++    else if optVivaldiPreferences.isDefined then
++      cfg.vivaldi.managedPreferences
++    else
++      {};
++
++  effectiveVivaldiExtensions =
++    if guardViolations != [] then
++      {}
++    else if optVivaldiExtensions.isDefined then
++      cfg.vivaldi.externalExtensions
++    else
++      {};
++
++  effectiveVivaldiNMH =
++    if guardViolations != [] then
++      {}
++    else if optVivaldiNMH.isDefined then
++      cfg.vivaldi.nativeMessagingHosts
++    else
++      {};
++
++  effectiveFloorpPolicies =
++    if guardViolations != [] then
++      {}
++    else if optFloorpPolicies.isDefined then
++      cfg.floorp.policies
++    else
++      {};
++
++  effectiveFloorpPreferences =
++    if guardViolations != [] then
++      {}
++    else if effectiveFloorpPolicies != {} then
++      { EnterprisePoliciesEnabled = true; } // (builtins.removeAttrs effectiveFloorpPolicies [ "EnterprisePoliciesEnabled" ])
++    else
++      {};
++
+   resolveArtifactFile = name: value:
+     if builtins.isPath value then
+       value
+@@ -421,6 +533,12 @@
+   effectiveFirefoxNMHFiles =
+     lib.mapAttrs resolveArtifactFile effectiveFirefoxNMH;
+ 
++  effectiveVivaldiExtensionFiles =
++    lib.mapAttrs resolveArtifactFile effectiveVivaldiExtensions;
++
++  effectiveVivaldiNMHFiles =
++    lib.mapAttrs resolveArtifactFile effectiveVivaldiNMH;
++
+   chromeManagedPlist =
+     if effectiveChromePreferences != {} then
+       pkgs.writeText "com.google.Chrome.plist" (lib.generators.toPlist { escape = true; } effectiveChromePreferences)
+@@ -434,9 +552,78 @@
+       pkgs.writeText "org.mozilla.firefox.plist" (lib.generators.toPlist { escape = true; } effectiveFirefoxPreferences)
+     else
+       null;
++
++  vivaldiManagedPlist =
++    if guardViolations != [] then
++      null
++    else if effectiveVivaldiPreferences != {} then
++      pkgs.writeText "com.vivaldi.Vivaldi.plist" (lib.generators.toPlist { escape = true; } effectiveVivaldiPreferences)
++    else
++      null;
++
++  floorpManagedPlist =
++    if guardViolations != [] then
++      null
++    else if effectiveFloorpPreferences != {} then
++      pkgs.writeText "app.floorp.Floorp.plist" (lib.generators.toPlist { escape = true; } effectiveFloorpPreferences)
++    else
++      null;
++
++  # KeePassXC's supported Vivaldi installer uses the primary user's Library.
++  # Do not invent a second system root from Chromium family membership.
++  primaryUser = config.system.primaryUser or null;
++  primaryHome = if primaryUser == null then null else config.users.users.${primaryUser}.home;
++  vivaldiNativeRoot = if effectiveVivaldiNMHFiles == {} then null
++    else if primaryHome == null then throw "Vivaldi native delivery requires the configured primary user's home"
++    else "${primaryHome}/Library/Application Support/Vivaldi/NativeMessagingHosts";
++
++  attendedTargets =
++    lib.optional (chromeManagedPlist != null) { target = "/Library/Managed Preferences/com.google.Chrome.plist"; source = chromeManagedPlist; }
++    ++ lib.optional (firefoxManagedPlist != null) { target = "/Library/Preferences/org.mozilla.firefox.plist"; source = firefoxManagedPlist; }
++    ++ lib.optional (vivaldiManagedPlist != null) { target = "/Library/Managed Preferences/com.vivaldi.Vivaldi.plist"; source = vivaldiManagedPlist; }
++    ++ lib.optional (floorpManagedPlist != null) { target = "/Library/Preferences/app.floorp.Floorp.plist"; source = floorpManagedPlist; }
++    ++ lib.mapAttrsToList (id: source: { target = "/Library/Application Support/Google/Chrome/External Extensions/${id}.json"; inherit source; }) effectiveChromeExtensionFiles
++    ++ lib.mapAttrsToList (id: source: { target = "/Library/Application Support/Vivaldi/External Extensions/${id}.json"; inherit source; }) effectiveVivaldiExtensionFiles
++    ++ lib.mapAttrsToList (name: source: { target = "/Library/Google/Chrome/NativeMessagingHosts/${name}.json"; inherit source; }) effectiveChromeNMHFiles
++    ++ lib.mapAttrsToList (name: source: { target = "/Library/Application Support/Mozilla/NativeMessagingHosts/${name}.json"; inherit source; }) effectiveFirefoxNMHFiles
++    ++ lib.mapAttrsToList (name: source: { target = "${vivaldiNativeRoot}/${name}.json"; inherit source; perUser = true; }) effectiveVivaldiNMHFiles;
++  makeAttendedApply = name: targets: pkgs.writeShellScript name ''
++    set -eu
++    test "$(id -u)" -eq 0
++    ${lib.concatMapStrings (row: ''
++      parent=${lib.escapeShellArg (builtins.dirOf row.target)}
++      if [ ! -d "$parent" ]; then
++        install -d -m 0755 "$parent"
++        ${lib.optionalString (row.perUser or false) "chown ${lib.escapeShellArg primaryUser} \"$parent\""}
++      fi
++      target=${lib.escapeShellArg row.target}
++      # Break an existing manifest symlink before replacing its link entry.
++      if [ -L "$target" ]; then rm "$target"; fi
++      install -m 0644 ${lib.escapeShellArg (toString row.source)} "$target"
++      ${lib.optionalString (row.perUser or false) "chown ${lib.escapeShellArg primaryUser} \"$target\""}
++    '') targets}
++  '';
++  attendedApply = makeAttendedApply "browser-baseline-attended-apply" attendedTargets;
++  attendedTargetsByBrowser = {
++    chrome = builtins.filter (row: lib.hasInfix "com.google.Chrome.plist" row.target || lib.hasInfix "/Google/Chrome/" row.target) attendedTargets;
++    firefox = builtins.filter (row: lib.hasInfix "org.mozilla.firefox.plist" row.target || lib.hasInfix "/Mozilla/NativeMessagingHosts/" row.target) attendedTargets;
++    vivaldi = builtins.filter (row: lib.hasInfix "Vivaldi" row.target) attendedTargets;
++    floorp = builtins.filter (row: lib.hasInfix "app.floorp.Floorp.plist" row.target || lib.hasInfix "/Mozilla/NativeMessagingHosts/" row.target) attendedTargets;
++  };
++  attendedApplyByBrowser = lib.mapAttrs (browser: targets:
++    makeAttendedApply "browser-baseline-attended-${browser}" targets) attendedTargetsByBrowser;
+ in
+ {
+   options.programs.browserBaseline = {
++    replacementPolicyOwnership = lib.mkOption {
++      type = lib.types.bool;
++      default = false;
++      description = ''
++        Explicit ownership of Vivaldi/Floorp policy targets, including retraction
++        when those endpoints become absent. Leave false on unselected hosts.
++        Native registrations owned by KeePassXC are outside this retraction.
++      '';
++    };
+     legacyPolicyDefaults.enable = lib.mkOption {
+       type = lib.types.bool;
+       default = true;
+@@ -508,6 +695,41 @@
+         '';
+       };
+     };
++
++    vivaldi = {
++      managedPreferences = lib.mkOption {
++        type = lib.types.attrsOf lib.types.anything;
++        description = ''
++          Vivaldi managed policy values written to /Library/Managed Preferences/com.vivaldi.Vivaldi.plist.
++          Each attribute name is a top-level policy key.
++        '';
++      };
++
++      externalExtensions = lib.mkOption {
++        type = lib.types.attrsOf (lib.types.either lib.types.path (lib.types.attrsOf lib.types.anything));
++        description = ''
++          Vivaldi external extensions mapping extension IDs to either a manifest path, a payload record,
++          or a structured attribute set. Extension IDs must be 32-character identifiers matching [a-p]{32}.
++        '';
++      };
++
++      nativeMessagingHosts = lib.mkOption {
++        type = lib.types.attrsOf (lib.types.either lib.types.path (lib.types.attrsOf lib.types.anything));
++        description = ''
++          Vivaldi NativeMessagingHosts mapping host names to JSON manifest paths or attribute sets.
++          Host names must match [a-zA-Z0-9_.-]+.
++        '';
++      };
++    };
++
++    floorp = {
++      policies = lib.mkOption {
++        type = lib.types.attrsOf lib.types.anything;
++        description = ''
++          Floorp enterprise policy values written to /Library/Preferences/app.floorp.Floorp.plist.
++        '';
++      };
++    };
+   };
+ 
+   config = {
+@@ -528,6 +750,8 @@
+     ];
+ 
+     system.build.browserBaseline = {
++      inherit attendedTargets attendedApply attendedTargetsByBrowser attendedApplyByBrowser;
++      attendedOwner = "core/programs.browserBaseline";
+       inherit guardViolations;
+       inherit chromeManagedPlist;
+       chromeExternalExtensions = effectiveChromeExtensionFiles;
+@@ -537,6 +761,11 @@
+       firefoxManagedPlist = firefoxManagedPlist;
+       firefoxPreferences = effectiveFirefoxPreferences;
+       firefoxNativeMessagingHosts = effectiveFirefoxNMHFiles;
++      vivaldiManagedPlist = vivaldiManagedPlist;
++      vivaldiExternalExtensions = effectiveVivaldiExtensionFiles;
++      vivaldiNativeMessagingHosts = effectiveVivaldiNMHFiles;
++      floorpManagedPlist = floorpManagedPlist;
++      floorpPreferences = effectiveFloorpPreferences;
+       effectiveState = {
+         legacyDefaultsEnabled = cfg.legacyPolicyDefaults.enable;
+         hasChromePreferences = effectiveChromePreferences != {};
+@@ -547,6 +776,13 @@
+         hasFirefoxPolicies = (effectiveFirefoxPoliciesFile != null) || (firefoxManagedPlist != null);
+         hasFirefoxPlist = firefoxManagedPlist != null;
+         firefoxNativeMessagingHostNames = builtins.attrNames effectiveFirefoxNMH;
++        hasVivaldiPreferences = effectiveVivaldiPreferences != {};
++        vivaldiPreferenceCount = builtins.length (builtins.attrNames effectiveVivaldiPreferences);
++        vivaldiExternalExtensionIds = builtins.attrNames effectiveVivaldiExtensions;
++        vivaldiNativeMessagingHostNames = builtins.attrNames effectiveVivaldiNMH;
++        hasFloorpPolicies = effectiveFloorpPreferences != {};
++        hasFloorpPlist = floorpManagedPlist != null;
++        floorpPolicyCount = builtins.length (builtins.attrNames effectiveFloorpPolicies);
+       };
+     };
+ 
+@@ -564,11 +800,11 @@
+       ''}
+ 
+       # Stale Chrome preference cleanup
+-      defaults delete "/Library/Managed Preferences/com.google.Chrome" PasswordManagerEnabled >/dev/null 2>&1 || true
++      ${lib.optionalString (!(effectiveChromePreferences ? PasswordManagerEnabled)) ''defaults delete "/Library/Managed Preferences/com.google.Chrome" PasswordManagerEnabled >/dev/null 2>&1 || true''}
+       defaults delete "/Library/Preferences/com.google.Chrome" PasswordManagerEnabled >/dev/null 2>&1 || true
+-      defaults delete "/Library/Managed Preferences/com.google.Chrome" AutofillCreditCardEnabled >/dev/null 2>&1 || true
++      ${lib.optionalString (!(effectiveChromePreferences ? AutofillCreditCardEnabled)) ''defaults delete "/Library/Managed Preferences/com.google.Chrome" AutofillCreditCardEnabled >/dev/null 2>&1 || true''}
+       defaults delete "/Library/Preferences/com.google.Chrome" AutofillCreditCardEnabled >/dev/null 2>&1 || true
+-      defaults delete "/Library/Managed Preferences/com.google.Chrome" AutofillAddressEnabled >/dev/null 2>&1 || true
++      ${lib.optionalString (!(effectiveChromePreferences ? AutofillAddressEnabled)) ''defaults delete "/Library/Managed Preferences/com.google.Chrome" AutofillAddressEnabled >/dev/null 2>&1 || true''}
+       defaults delete "/Library/Preferences/com.google.Chrome" AutofillAddressEnabled >/dev/null 2>&1 || true
+       killall cfprefsd >/dev/null 2>&1 || true
+ 
+@@ -679,6 +915,58 @@
+           killall cfprefsd >/dev/null 2>&1 || true
+         fi
+       ''}
++
++      ${lib.optionalString (cfg.replacementPolicyOwnership || vivaldiManagedPlist != null || effectiveVivaldiExtensionFiles != {} || effectiveVivaldiNMHFiles != {}) ''
++      # Vivaldi Managed Preferences (only an explicitly selected endpoint)
++      ${if vivaldiManagedPlist != null then ''
++        install -d -m 0755 "/Library/Managed Preferences"
++        install -m 0644 "${vivaldiManagedPlist}" "/Library/Managed Preferences/com.vivaldi.Vivaldi.plist"
++      '' else lib.optionalString cfg.replacementPolicyOwnership ''
++        rm -f "/Library/Managed Preferences/com.vivaldi.Vivaldi.plist"
++      ''}
++
++      # Vivaldi External Extensions
++      vivaldiExternalRoot="/Library/Application Support/Vivaldi"
++      vivaldiExternalExtensionsDir="/Library/Application Support/Vivaldi/External Extensions"
++      ${if effectiveVivaldiExtensionFiles != {} then ''
++        install -d -m 0755 "$vivaldiExternalExtensionsDir"
++        chown root:wheel "$vivaldiExternalRoot" "$vivaldiExternalExtensionsDir"
++        chmod 0755 "$vivaldiExternalRoot" "$vivaldiExternalExtensionsDir"
++        ${lib.concatStrings (lib.mapAttrsToList (id: file: ''
++          install -m 0644 "${file}" "$vivaldiExternalExtensionsDir/${id}.json"
++          chown root:wheel "$vivaldiExternalExtensionsDir/${id}.json"
++          chmod 0644 "$vivaldiExternalExtensionsDir/${id}.json"
++        '') effectiveVivaldiExtensionFiles)}
++      '' else ""}
++      # Only explicitly owned, known external manifests are retracted.
++      ${lib.optionalString cfg.replacementPolicyOwnership (lib.concatMapStrings (id:
++        lib.optionalString (!(effectiveVivaldiExtensions ? "${id}")) ''
++          rm -f "$vivaldiExternalExtensionsDir/${id}.json"
++        '') knownExternalExtensionIdentities)}
++
++      # Vivaldi Native Messaging Hosts
++      ${if effectiveVivaldiNMHFiles != {} then ''
++        if [ ! -d ${lib.escapeShellArg vivaldiNativeRoot} ]; then
++          install -d -m 0755 ${lib.escapeShellArg vivaldiNativeRoot}
++          chown ${lib.escapeShellArg primaryUser} ${lib.escapeShellArg vivaldiNativeRoot}
++        fi
++        ${lib.concatStrings (lib.mapAttrsToList (name: file: ''
++          ln -sfn "${file}" ${lib.escapeShellArg "${vivaldiNativeRoot}/${name}.json"}
++          chown -h ${lib.escapeShellArg primaryUser} ${lib.escapeShellArg "${vivaldiNativeRoot}/${name}.json"}
++        '') effectiveVivaldiNMHFiles)}
++      '' else ""}
++      ''}
++
++      ${if floorpManagedPlist != null then ''
++        # Floorp Policies (macOS preferences)
++        install -d -m 0755 "/Library/Preferences"
++        install -o root -g wheel -m 0644 "${floorpManagedPlist}" "/Library/Preferences/app.floorp.Floorp.plist.tmp.$$"
++        mv -f "/Library/Preferences/app.floorp.Floorp.plist.tmp.$$" "/Library/Preferences/app.floorp.Floorp.plist"
++        killall cfprefsd >/dev/null 2>&1 || true
++      '' else lib.optionalString cfg.replacementPolicyOwnership ''
++        rm -f "/Library/Preferences/app.floorp.Floorp.plist"
++        killall cfprefsd >/dev/null 2>&1 || true
++      ''}
+     '';
+   };
+ }

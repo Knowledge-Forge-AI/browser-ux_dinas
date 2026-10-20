@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+RCLONE="${RCLONE:-rclone}"
+LOCAL_DIR="${SHARED_IMAGES_LOCAL_DIR:-$HOME/Pictures/shared-images}"
+REMOTE="${SHARED_IMAGES_CRYPT_REMOTE:-shared-images-crypt:}"
+
+common_args=()
+common_args+=(--links)
+common_args+=(--create-empty-src-dirs)
+common_args+=(--fast-list)
+common_args+=(--progress)
+common_args+=(--exclude ".DS_Store")
+
+usage() {
+  cat <<EOF
+Usage: shared-images-rclone-sync [push|pull|dry-run-push|dry-run-pull|size]
+
+Syncs ${LOCAL_DIR}
+with ${REMOTE}
+through rclone crypt, preserving symlinks with --links.
+EOF
+}
+
+require_local_dir() {
+  if [ ! -d "$LOCAL_DIR" ]; then
+    echo "Local shared-images directory does not exist: $LOCAL_DIR" >&2
+    exit 1
+  fi
+}
+
+case "${1:-}" in
+  push)
+    require_local_dir
+    "$RCLONE" sync "${common_args[@]}" "$LOCAL_DIR" "$REMOTE"
+    ;;
+  pull)
+    mkdir -p "$LOCAL_DIR"
+    "$RCLONE" sync "${common_args[@]}" "$REMOTE" "$LOCAL_DIR"
+    ;;
+  dry-run-push)
+    require_local_dir
+    "$RCLONE" sync --dry-run "${common_args[@]}" "$LOCAL_DIR" "$REMOTE"
+    ;;
+  dry-run-pull)
+    mkdir -p "$LOCAL_DIR"
+    "$RCLONE" sync --dry-run "${common_args[@]}" "$REMOTE" "$LOCAL_DIR"
+    ;;
+  size)
+    "$RCLONE" size "$REMOTE"
+    ;;
+  -h|--help|"")
+    usage
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac

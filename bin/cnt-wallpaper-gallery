@@ -1,0 +1,1199 @@
+#!/usr/bin/env python3
+"""
+Manage the Clear New Tab wallpaper gallery from the shared-images database.
+
+The script reads image records from:
+  ~/Pictures/shared-images/shared-images-db.sqlite
+
+It can back up and clear Clear New Tab's IndexedDB storage for Chrome and/or
+Firefox. It can also build Clear New Tab native backup JSON files for importing
+the selected image set. Chrome import is applied through Clear New Tab's
+own restore control. Firefox import is prepared for manual restore because its
+extension storage cannot safely be written from this script.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import configparser
+import hashlib
+import json
+import mimetypes
+import os
+import re
+import shutil
+import sqlite3
+import subprocess
+import sys
+import tempfile
+import time
+import uuid
+from dataclasses import dataclass, replace
+from pathlib import Path
+
+
+CHROME_CNT_ID = "felphkbfjadmcejnibcmcncimlappdde"
+FIREFOX_CNT_ID = "clear-new-tab@loftyshaky"
+CHROME_CNT_SETTINGS_URL = f"chrome-extension://{CHROME_CNT_ID}/settings.html"
+CHROME_CNT_BACKUP_INPUT_SELECTOR = "input[type='file'].file.back_up, input.file.back_up"
+CHROME_RESTORE_PART_LIMIT_BYTES = 400 * 1024 * 1024
+DEFAULT_CHROME_CHUNK_MB = 45
+DEFAULT_SHARED_IMAGES_DB = Path.home() / "Pictures/shared-images/shared-images-db.sqlite"
+IMAGE_TYPE_ALIASES = {
+    "all": {"wallpaper", "portrait"},
+    "both": {"wallpaper", "portrait"},
+    "wallpapers": {"wallpaper"},
+    "wallpaper": {"wallpaper"},
+    "portraits": {"portrait"},
+    "portrait": {"portrait"},
+}
+IMAGE_SUFFIXES = {
+    ".avif",
+    ".bmp",
+    ".gif",
+    ".heic",
+    ".heif",
+    ".jpeg",
+    ".jpg",
+    ".png",
+    ".webp",
+}
+
+
+@dataclass(frozen=True)
+class Wallpaper:
+    path: Path
+    rating: str
+    series: str
+    artist: str
+    image_type: str
+    hi_res: bool
+    digest: str = ""
+
+
+@dataclass(frozen=True)
+class Target:
+    name: str
+    profile: Path
+
+
+def eprint(message: str) -> None:
+    print(message, file=sys.stderr)
+
+
+def yes_no(prompt: str, *, default: bool | None = None) -> bool:
+    suffix = " [y/n]" if default is None else (" [Y/n]" if default else " [y/N]")
+    while True:
+        answer = input(f"{prompt}{suffix} ").strip().lower()
+        if not answer and default is not None:
+            return default
+        if answer in {"y", "yes"}:
+            return True
+        if answer in {"n", "no"}:
+            return False
+        if answer in {"e", "exit", "q", "quit"}:
+            raise SystemExit(0)
+        print("Please enter y, n, or exit.")
+
+
+def choose_menu(title: str, choices: dict[str, tuple[str, object]]) -> object:
+    while True:
+        print()
+        print(title)
+        for key, (label, _) in choices.items():
+            print(f"  {key}) {label}")
+        print("  e) Exit")
+        answer = input("> ").strip().lower()
+        if answer in {"e", "exit", "q", "quit"}:
+            raise SystemExit(0)
+        if answer in choices:
+            return choices[answer][1]
+        print("That is not a valid option.")
+
+
+def split_csv(value: str | None) -> list[str]:
+    if not value:
+        return []
+    return [part.strip() for part in value.split(",") if part.strip()]
+
+
+def normalize_image_types(value: str | None) -> set[str]:
+    key = (value or "wallpapers").strip().casefold()
+    try:
+        return set(IMAGE_TYPE_ALIASES[key])
+    except KeyError as error:
+        choices = ", ".join(sorted({"all", "both", "wallpapers", "portraits"}))
+        raise SystemExit(f"Unknown image type selection: {value}. Choose one of: {choices}.") from error
+
+
+def image_type_label(image_types: set[str]) -> str:
+    if image_types == {"wallpaper", "portrait"}:
+        return "both"
+    if image_types == {"wallpaper"}:
+        return "wallpapers"
+    if image_types == {"portrait"}:
+        return "portraits"
+    return ", ".join(sorted(image_types))
+
+
+def db_connect(path: Path) -> sqlite3.Connection:
+    if not path.is_file():
+        raise SystemExit(f"Shared images database not found: {path}")
+    connection = sqlite3.connect(path)
+    connection.row_factory = sqlite3.Row
+    return connection
+
+
+def chrome_profile() -> Path:
+    return Path(
+        os.environ.get(
+            "CNT_CHROME_PROFILE",
+            str(Path.home() / "Library/Application Support/Google/Chrome/Default"),
+        )
+    )
+
+
+def firefox_profile() -> Path | None:
+    override = os.environ.get("CNT_FIREFOX_PROFILE")
+    if override:
+        return Path(override)
+
+    profiles_ini = Path.home() / "Library/Application Support/Firefox/profiles.ini"
+    if not profiles_ini.exists():
+        return None
+
+    config = configparser.ConfigParser()
+    config.read(profiles_ini)
+    base = profiles_ini.parent
+    fallback = None
+    for section in config.sections():
+        if not section.startswith("Profile"):
+            continue
+        raw_path = config.get(section, "Path", fallback="")
+        if not raw_path:
+            continue
+        path = Path(raw_path)
+        if config.get(section, "IsRelative", fallback="1") == "1":
+            path = base / path
+        fallback = fallback or path
+        if config.get(section, "Default", fallback="0") == "1":
+            return path
+    return fallback
+
+
+def resolve_targets(scope: str) -> list[Target]:
+    targets: list[Target] = []
+    if scope in {"both", "chrome"}:
+        targets.append(Target("chrome", chrome_profile()))
+    if scope in {"both", "firefox"}:
+        profile = firefox_profile()
+        if profile is None:
+            raise SystemExit("Firefox profile not found.")
+        targets.append(Target("firefox", profile))
+    return targets
+
+
+def db_rows(db_path: Path) -> list[sqlite3.Row]:
+    with db_connect(db_path) as connection:
+        return list(
+            connection.execute(
+                """
+                SELECT
+                    images.path,
+                    images.relative_path,
+                    images.safety,
+                    images.series,
+                    images.artist,
+                    image_types.value AS image_type,
+                    res_type.value AS res_type
+                FROM anime_women_images AS images
+                JOIN image_types ON image_types.id = images.image_type_id
+                JOIN res_type ON res_type.id = images.res_type_id
+                ORDER BY
+                    image_types.value COLLATE NOCASE,
+                    images.safety COLLATE NOCASE,
+                    images.series COLLATE NOCASE,
+                    images.artist COLLATE NOCASE,
+                    images.title COLLATE NOCASE,
+                    images.relative_path COLLATE NOCASE,
+                    images.path COLLATE NOCASE
+                """
+            )
+        )
+
+
+def row_value(row: sqlite3.Row, column: str) -> str:
+    value = row[column]
+    return "" if value is None else str(value)
+
+
+def row_matches_filters(
+    row: sqlite3.Row,
+    content: str,
+    image_types: set[str],
+    series_filter: set[str],
+    artist_filter: set[str],
+    hi_res_only: bool,
+) -> bool:
+    if content != "all" and row_value(row, "safety") != content:
+        return False
+    if row_value(row, "image_type") not in image_types:
+        return False
+    if hi_res_only and row_value(row, "res_type") != "high_res":
+        return False
+
+    wanted = {item.casefold() for item in series_filter}
+    if wanted and row_value(row, "series").casefold() not in wanted:
+        return False
+
+    wanted_artists = {item.casefold() for item in artist_filter}
+    if wanted_artists and row_value(row, "artist").casefold() not in wanted_artists:
+        return False
+
+    return True
+
+
+def available_values(
+    db_path: Path,
+    column: str,
+    content: str,
+    image_types: set[str],
+    series_filter: set[str],
+    artist_filter: set[str],
+    hi_res_only: bool,
+) -> list[str]:
+    values: dict[str, str] = {}
+    for row in db_rows(db_path):
+        if row_matches_filters(row, content, image_types, series_filter, artist_filter, hi_res_only):
+            value = row_value(row, column)
+            if not value:
+                continue
+            values.setdefault(value.casefold(), value)
+    return sorted(values.values(), key=str.casefold)
+
+
+def canonicalize_filter(
+    requested: list[str],
+    available: list[str],
+    label: str,
+) -> set[str]:
+    if not requested:
+        return set()
+    by_casefold = {name.casefold(): name for name in available}
+    unknown = [name for name in requested if name.casefold() not in by_casefold]
+    if unknown:
+        raise SystemExit(f"Unknown {label}: {', '.join(unknown)}")
+    return {by_casefold[name.casefold()] for name in requested}
+
+
+def db_image_path(row: sqlite3.Row, db_path: Path) -> Path:
+    raw_path = row_value(row, "path")
+    relative_path = row_value(row, "relative_path")
+    if raw_path:
+        path = Path(raw_path).expanduser()
+        if path.is_absolute() and path.exists():
+            return path
+
+    if relative_path:
+        candidate = db_path.parent / relative_path
+        if candidate.exists() or not raw_path:
+            return candidate
+
+    return Path(raw_path).expanduser()
+
+
+def discover_images(
+    db_path: Path,
+    content: str,
+    image_types: set[str],
+    series_filter: set[str],
+    artist_filter: set[str],
+    hi_res_only: bool,
+) -> list[Wallpaper]:
+    wallpapers: list[Wallpaper] = []
+
+    for row in db_rows(db_path):
+        if not row_matches_filters(row, content, image_types, series_filter, artist_filter, hi_res_only):
+            continue
+        path = db_image_path(row, db_path)
+        if not path.is_file() or path.suffix.casefold() not in IMAGE_SUFFIXES:
+            eprint(f"skip missing or unsupported DB image path: {path}")
+            continue
+        wallpapers.append(
+            Wallpaper(
+                path=path,
+                rating=row_value(row, "safety"),
+                series=row_value(row, "series"),
+                artist=row_value(row, "artist"),
+                image_type=row_value(row, "image_type"),
+                hi_res=row_value(row, "res_type") == "high_res",
+            )
+        )
+    return wallpapers
+
+
+def prompt_csv_filter(label: str, available: list[str]) -> set[str]:
+    if available:
+        print()
+        print(f"Available {label}:")
+        for name in available:
+            print(f"  - {name}")
+    answer = input(f"Limit to {label}? comma-separated names, blank for all, or exit: ").strip()
+    if answer.casefold() in {"e", "exit", "q", "quit"}:
+        raise SystemExit(0)
+    while True:
+        requested = split_csv(answer)
+        try:
+            return canonicalize_filter(requested, available, label)
+        except SystemExit as error:
+            print(error)
+            answer = input("Try again, blank for all, or exit: ").strip()
+            if answer.casefold() in {"e", "exit", "q", "quit"}:
+                raise SystemExit(0)
+
+
+def prompt_filters(db_path: Path) -> tuple[str, set[str], set[str], set[str], bool]:
+    content = choose_menu(
+        "Optional content filter",
+        {
+            "1": ("All SFW and NSFW", "all"),
+            "2": ("SFW only", "sfw"),
+            "3": ("NSFW only", "nsfw"),
+        },
+    )
+    assert isinstance(content, str)
+
+    image_type_choice = choose_menu(
+        "Optional image type filter",
+        {
+            "1": ("Both wallpapers and portraits", "both"),
+            "2": ("Wallpapers only", "wallpapers"),
+            "3": ("Portraits only", "portraits"),
+        },
+    )
+    image_types = normalize_image_types(str(image_type_choice))
+
+    hi_res_only = yes_no("Hi-res only?", default=False)
+
+    available_series = available_values(db_path, "series", content, image_types, set(), set(), hi_res_only)
+    series_filter = prompt_csv_filter("series", available_series)
+
+    available_artists = available_values(db_path, "artist", content, image_types, series_filter, set(), hi_res_only)
+    artist_filter = prompt_csv_filter("artists", available_artists)
+
+    return content, image_types, series_filter, artist_filter, hi_res_only
+
+
+def firefox_extension_uuid(profile: Path) -> str | None:
+    settings = profile / "extension-settings.json"
+    if settings.exists():
+        try:
+            data = json.loads(settings.read_text(encoding="utf-8"))
+            new_tab = data.get("url_overrides", {}).get("newTabURL", {})
+            for item in new_tab.get("precedenceList", []):
+                if item.get("id") == FIREFOX_CNT_ID:
+                    value = item.get("value", "")
+                    match = re.match(r"moz-extension://([^/]+)/", value)
+                    if match:
+                        return match.group(1)
+        except (OSError, json.JSONDecodeError):
+            pass
+
+    storage = profile / "storage/default"
+    if storage.is_dir():
+        for path in storage.glob("moz-extension+++*"):
+            name = path.name.removeprefix("moz-extension+++").split("^", 1)[0]
+            if name:
+                return name
+    return None
+
+
+def cnt_storage_paths(target: Target) -> list[Path]:
+    if target.name == "chrome":
+        indexeddb = target.profile / "IndexedDB"
+        return [
+            indexeddb / f"chrome-extension_{CHROME_CNT_ID}_0.indexeddb.leveldb",
+            indexeddb / f"chrome-extension_{CHROME_CNT_ID}_0.indexeddb.blob",
+        ]
+
+    uuid_part = firefox_extension_uuid(target.profile)
+    if not uuid_part:
+        return []
+    storage = target.profile / "storage/default"
+    return [
+        storage / f"moz-extension+++{uuid_part}",
+        storage / f"moz-extension+++{uuid_part}^userContextId=4294967295",
+    ]
+
+
+def target_running(target: Target) -> bool:
+    patterns = {
+        "chrome": re.compile(r"Google Chrome|google-chrome", re.IGNORECASE),
+        "firefox": re.compile(r"/Firefox\.app/|(^|[/\s])firefox([-\s]|$)", re.IGNORECASE),
+    }
+    pattern = patterns[target.name]
+    try:
+        result = subprocess.run(
+            ["ps", "-axo", "pid=,args="],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    self_pid = os.getpid()
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        pid_text, _, args = line.partition(" ")
+        if not pid_text.isdigit() or int(pid_text) == self_pid:
+            continue
+        if pattern.search(args):
+            return True
+    return False
+
+
+def backup_and_clear(target: Target, backup_root: Path, dry_run: bool, force: bool) -> None:
+    paths = [path for path in cnt_storage_paths(target) if path.exists()]
+    if not paths:
+        print(f"{target.name}: no Clear New Tab DB paths found")
+        return
+
+    if target_running(target) and not force:
+        raise SystemExit(
+            f"{target.name}: browser appears to be running; close it before clearing CNT DB "
+            "or rerun with --force."
+        )
+
+    target_backup = backup_root / target.name
+    for path in paths:
+        backup_path = target_backup / path.name
+        print(f"{target.name}: move {path} -> {backup_path}")
+        if dry_run:
+            continue
+        target_backup.mkdir(parents=True, exist_ok=True)
+        if backup_path.exists():
+            raise SystemExit(f"Backup path already exists: {backup_path}")
+        shutil.move(str(path), str(backup_path))
+
+
+def run_text(cmd: list[str]) -> str | None:
+    try:
+        result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return result.stdout.strip()
+
+
+def image_dimensions(path: Path) -> tuple[int, int] | None:
+    output = run_text(["magick", "identify", "-format", "%w %h", str(path)])
+    if output:
+        parts = output.split()
+        if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+            return int(parts[0]), int(parts[1])
+
+    output = run_text(["sips", "-g", "pixelWidth", "-g", "pixelHeight", str(path)])
+    if output:
+        width = height = None
+        for line in output.splitlines():
+            if "pixelWidth:" in line:
+                width = int(line.rsplit(":", 1)[1].strip())
+            if "pixelHeight:" in line:
+                height = int(line.rsplit(":", 1)[1].strip())
+        if width and height:
+            return width, height
+    return None
+
+
+def file_data_url(path: Path, mime: str) -> str:
+    data = base64.b64encode(path.read_bytes()).decode("ascii")
+    return f"data:{mime};base64,{data}"
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for block in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def dedupe_images(wallpapers: list[Wallpaper]) -> list[Wallpaper]:
+    seen: dict[str, Path] = {}
+    unique: list[Wallpaper] = []
+    for wallpaper in wallpapers:
+        try:
+            digest = file_sha256(wallpaper.path)
+        except OSError as error:
+            eprint(f"skip unreadable image: {wallpaper.path}: {error}")
+            continue
+
+        original = seen.get(digest)
+        if original:
+            print(f"skip duplicate image: {wallpaper.path} (same content as {original})")
+            continue
+
+        seen[digest] = wallpaper.path
+        unique.append(replace(wallpaper, digest=digest))
+    return unique
+
+
+def thumbnail_data_url(path: Path) -> tuple[str, int | None, int | None]:
+    try:
+        result = subprocess.run(
+            ["magick", str(path), "-auto-orient", "-resize", "400x94>", "png:-"],
+            check=True,
+            capture_output=True,
+        )
+        data = base64.b64encode(result.stdout).decode("ascii")
+        return f"data:image/png;base64,{data}", None, None
+    except (OSError, subprocess.CalledProcessError):
+        return "", None, None
+
+
+def make_chunk(wallpaper: Wallpaper, index: int) -> dict[str, object] | None:
+    mime = mimetypes.guess_type(wallpaper.path.name)[0] or "image/jpeg"
+    dims = image_dimensions(wallpaper.path)
+    if dims is None:
+        eprint(f"skip unsupported image: {wallpaper.path}")
+        return None
+
+    width, height = dims
+    thumb, thumb_width, thumb_height = thumbnail_data_url(wallpaper.path)
+    if not thumb:
+        thumb = file_data_url(wallpaper.path, mime)
+        thumb_width, thumb_height = width, height
+
+    full_data = file_data_url(wallpaper.path, mime)
+    background_key = wallpaper.digest or str(wallpaper.path.resolve())
+    background_id = uuid.uuid5(uuid.NAMESPACE_URL, f"cnt-wallpaper-gallery:{background_key}").hex
+    stat = wallpaper.path.stat()
+
+    return {
+        "data": {
+            "id": background_id,
+            "i": str(index),
+            "type": "img_file",
+            "width": width,
+            "height": height,
+            "thumbnail_width": thumb_width or width,
+            "thumbnail_height": thumb_height or height,
+            "background_size": "global",
+            "background_position": "global",
+            "background_repeat": "global",
+            "color_of_area_around_background": "global",
+            "video_speed": "global",
+            "video_volume": "global",
+        },
+        "thumbnail": {"background": thumb},
+        "file": {
+            "name": wallpaper.path.name,
+            "type": mime,
+            "last_modified": int(stat.st_mtime * 1000),
+            "background": full_data,
+        },
+        "tasks": [],
+    }
+
+
+def make_backup_payload(chunks: list[dict[str, object]], number: int) -> dict[str, object]:
+    payload: dict[str, object] = {"chunks": chunks}
+    if number == 1:
+        payload = {
+            "settings": {
+                "prefs": {
+                    "mode": "multiple_backgrounds",
+                    "id_of_last_installed_theme": "",
+                },
+            },
+            "custom_code": {"html": "", "css": "", "js": ""},
+            **payload,
+        }
+    return payload
+
+
+def write_backup_files(
+    wallpapers: list[Wallpaper],
+    output_dir: Path,
+    chunk_mb: int,
+    dry_run: bool,
+) -> list[Path]:
+    max_bytes = chunk_mb * 1024 * 1024
+    if not dry_run:
+        output_dir.mkdir(parents=True, exist_ok=True)
+    parts: list[list[dict[str, object]]] = []
+    current: list[dict[str, object]] = []
+    current_size = len('{"chunks":[]}')
+
+    for index, wallpaper in enumerate(wallpapers, start=1):
+        print(f"encode {index}/{len(wallpapers)}: {wallpaper.path}")
+        chunk = make_chunk(wallpaper, index)
+        if chunk is None:
+            continue
+        chunk_json = json.dumps(chunk, separators=(",", ":"))
+        chunk_size = len(chunk_json.encode("utf-8")) + 2
+        if current and current_size + chunk_size > max_bytes:
+            parts.append(current)
+            current = []
+            current_size = len('{"chunks":[]}')
+        current.append(chunk)
+        current_size += chunk_size
+    if current:
+        parts.append(current)
+
+    timestamp = time.strftime("%Y%m%d-%H%M%S")
+    paths: list[Path] = []
+    for number, chunks in enumerate(parts, start=1):
+        suffix = f"part-{number:02d}" if len(parts) > 1 else "all"
+        path = output_dir / f"clear-new-tab-wallpapers-{timestamp}-{suffix}.json"
+        print(f"write {path} ({len(chunks)} images)")
+        paths.append(path)
+        if not dry_run:
+            path.write_text(json.dumps(make_backup_payload(chunks, number), separators=(",", ":")), encoding="utf-8")
+    return paths
+
+
+def print_import_files(files: list[Path]) -> None:
+    print()
+    print("Clear New Tab import files:")
+    for path in files:
+        print(f"  {path}")
+
+
+def print_manual_import_instructions(targets: list[Target], files: list[Path]) -> None:
+    print_import_files(files)
+    print()
+    print("Import them through Clear New Tab's Restore -> Upload backup control.")
+    for target in targets:
+        if target.name == "chrome":
+            print(f"  Chrome settings: {CHROME_CNT_SETTINGS_URL}")
+        else:
+            uuid_part = firefox_extension_uuid(target.profile)
+            if uuid_part:
+                print(f"  Firefox settings: moz-extension://{uuid_part}/settings.html")
+
+
+# Packaging may inject an immutable executable supplied by the core owner.
+# Standalone builds fail closed: their nixpkgs pin need not match selected core.
+PACKAGED_CHROME_EXECUTABLE = ""
+
+
+def chrome_executable(args: argparse.Namespace) -> Path:
+    candidate = (args.chrome_executable or os.environ.get("CNT_CHROME_EXECUTABLE")
+                 or PACKAGED_CHROME_EXECUTABLE)
+    if not candidate:
+        raise SystemExit("chrome: supply --chrome-executable or CNT_CHROME_EXECUTABLE matching selected core Chrome.")
+    path = Path(candidate).expanduser()
+    if not path.is_file() or not os.access(path, os.X_OK):
+        raise SystemExit("chrome: configured Google Chrome executable is not executable.")
+    return path
+
+
+def playwright_python() -> Path:
+    return Path(sys.executable)
+
+
+CHROME_PROFILE_COPY_IGNORES = {
+    "BrowserMetrics",
+    "Cache",
+    "CertificateRevocation",
+    "Code Cache",
+    "Crash Reports",
+    "Crashpad",
+    "DawnCache",
+    "GPUCache",
+    "GrShaderCache",
+    "OptimizationGuidePredictionModels",
+    "RunningChromeVersion",
+    "Safe Browsing",
+    "ShaderCache",
+    "SingletonCookie",
+    "SingletonLock",
+    "SingletonSocket",
+}
+
+
+def ignore_chrome_profile_copy(directory: str, names: list[str]) -> set[str]:
+    del directory
+    return {name for name in names if name in CHROME_PROFILE_COPY_IGNORES}
+
+
+def remove_path(path: Path) -> None:
+    try:
+        if path.is_dir() and not path.is_symlink():
+            shutil.rmtree(path)
+        else:
+            path.unlink()
+    except FileNotFoundError:
+        pass
+
+
+def clear_chrome_cnt_storage(profile: Path) -> None:
+    for path in cnt_storage_paths(Target("chrome", profile)):
+        remove_path(path)
+
+
+def path_size(path: Path) -> int:
+    try:
+        if path.is_dir() and not path.is_symlink():
+            total = 0
+            for item in path.rglob("*"):
+                try:
+                    if item.is_file():
+                        total += item.stat().st_size
+                except OSError:
+                    pass
+            return total
+        return path.stat().st_size
+    except OSError:
+        return 0
+
+
+def chrome_cnt_storage_size(profile: Path) -> int:
+    return sum(path_size(path) for path in cnt_storage_paths(Target("chrome", profile)) if path.exists())
+
+
+def format_bytes(size: int) -> str:
+    value = float(size)
+    for unit in ("B", "KiB", "MiB", "GiB"):
+        if value < 1024 or unit == "GiB":
+            if unit == "B":
+                return f"{size} B"
+            return f"{value:.1f} {unit}"
+        value /= 1024
+    return f"{size} B"
+
+
+def expected_chrome_cnt_db_growth(files: list[str]) -> int:
+    total = 0
+    for file in files:
+        try:
+            total += Path(file).stat().st_size
+        except OSError:
+            pass
+    if total < 10 * 1024 * 1024:
+        return max(64 * 1024, total // 20)
+    return max(5 * 1024 * 1024, total // 10)
+
+
+def wait_for_chrome_cnt_import(
+    profile: Path,
+    files: list[str],
+    baseline_size: int,
+    timeout_ms: int,
+    quiet_ms: int,
+    log,
+) -> None:
+    min_growth = expected_chrome_cnt_db_growth(files)
+    target_size = baseline_size + min_growth
+    quiet_seconds = max(quiet_ms / 1000, 1)
+    deadline = time.monotonic() + (timeout_ms / 1000)
+    last_size = chrome_cnt_storage_size(profile)
+    last_change = time.monotonic()
+    last_log = 0.0
+
+    log(
+        "chrome: waiting for Clear New Tab DB write to reach "
+        f"{format_bytes(target_size)} and settle."
+    )
+    while True:
+        now = time.monotonic()
+        size = chrome_cnt_storage_size(profile)
+        if size != last_size:
+            last_size = size
+            last_change = now
+
+        if size >= target_size and now - last_change >= quiet_seconds:
+            log(f"chrome: Clear New Tab DB write settled at {format_bytes(size)}.")
+            return
+
+        if now >= deadline:
+            raise SystemExit(
+                "chrome: timed out waiting for Clear New Tab to write imported wallpaper DB. "
+                f"Temporary DB is {format_bytes(size)}; expected at least {format_bytes(target_size)}. "
+                "Increase --chrome-import-timeout or try a smaller selection."
+            )
+
+        if now - last_log >= 10:
+            log(f"chrome: Clear New Tab DB is {format_bytes(size)} so far.")
+            last_log = now
+
+        time.sleep(1)
+
+
+def chrome_cnt_extension_dir(profile: Path) -> Path | None:
+    root = profile / "Extensions" / CHROME_CNT_ID
+    if not root.is_dir():
+        return None
+
+    versions = [path for path in root.iterdir() if (path / "manifest.json").is_file()]
+    if not versions:
+        return None
+
+    def version_key(path: Path) -> list[int | str]:
+        return [int(part) if part.isdigit() else part for part in re.split(r"(\d+)", path.name)]
+
+    return sorted(versions, key=version_key)[-1]
+
+
+def copy_chrome_user_data_dir(source: Path, destination: Path) -> None:
+    shutil.copytree(
+        source,
+        destination,
+        ignore=ignore_chrome_profile_copy,
+        ignore_dangling_symlinks=True,
+    )
+    for name in ("SingletonCookie", "SingletonLock", "SingletonSocket", "RunningChromeVersion"):
+        remove_path(destination / name)
+
+
+def replace_chrome_cnt_storage(source_profile: Path, destination_profile: Path, backup_root: Path) -> list[Path]:
+    source_paths = [path for path in cnt_storage_paths(Target("chrome", source_profile)) if path.exists()]
+    if not source_paths:
+        raise SystemExit(
+            "chrome: Clear New Tab did not create Chromium IndexedDB storage in the temporary profile. "
+            "Make sure Clear New Tab is installed and enabled in the target Chrome profile."
+        )
+
+    backup_paths: list[Path] = []
+    backup_root.mkdir(parents=True, exist_ok=True)
+    for source_path in source_paths:
+        destination_path = destination_profile / source_path.relative_to(source_profile)
+        if destination_path.exists():
+            backup_path = backup_root / source_path.name
+            if backup_path.exists():
+                raise SystemExit(f"chrome: backup path already exists: {backup_path}")
+            backup_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(destination_path), str(backup_path))
+            backup_paths.append(backup_path)
+
+        destination_path.parent.mkdir(parents=True, exist_ok=True)
+        if source_path.is_dir():
+            shutil.copytree(source_path, destination_path)
+        else:
+            shutil.copy2(source_path, destination_path)
+    return backup_paths
+
+
+def restore_chrome_backup_files(
+    page,
+    file_paths: list[str],
+    temp_profile: Path,
+    timeout_ms: int,
+    settle_ms: int,
+    log,
+) -> None:
+    file_input = page.locator(CHROME_CNT_BACKUP_INPUT_SELECTOR).first
+    log("chrome: waiting for Clear New Tab backup upload input.")
+    file_input.wait_for(state="attached", timeout=timeout_ms)
+
+    for file_path in file_paths:
+        backup_path = Path(file_path)
+        backup_size = backup_path.stat().st_size
+        if backup_size >= CHROME_RESTORE_PART_LIMIT_BYTES:
+            backup_size_mb = backup_size / (1024 * 1024)
+            limit_mb = CHROME_RESTORE_PART_LIMIT_BYTES / (1024 * 1024)
+            raise SystemExit(
+                f"chrome: generated backup part is {backup_size_mb:.1f} MiB, which is too large for "
+                f"the {limit_mb:.0f} MiB restore safety limit. Rerun with --chunk-mb "
+                f"{DEFAULT_CHROME_CHUNK_MB} or lower."
+            )
+
+    log(f"chrome: uploading {len(file_paths)} generated Clear New Tab backup file(s).")
+    baseline_size = chrome_cnt_storage_size(temp_profile)
+    file_input.set_input_files(file_paths, timeout=timeout_ms)
+    log(f"chrome: handed {len(file_paths)} generated file(s) to Clear New Tab.")
+    wait_for_chrome_cnt_import(
+        temp_profile,
+        file_paths,
+        baseline_size,
+        timeout_ms,
+        settle_ms,
+        log,
+    )
+
+
+def playwright_chrome_import_from_payload(payload_path: Path) -> int:
+    try:
+        from playwright.sync_api import Error as PlaywrightError
+        from playwright.sync_api import TimeoutError as PlaywrightTimeoutError
+        from playwright.sync_api import sync_playwright
+    except ImportError as error:
+        raise SystemExit(f"chrome: Playwright is not available to this Python interpreter: {error}") from error
+
+    payload = json.loads(payload_path.read_text(encoding="utf-8"))
+    files = [str(Path(item).expanduser()) for item in payload["files"]]
+    real_profile = Path(payload["profile"]).expanduser()
+    real_user_data_dir = real_profile.parent
+    profile_directory = real_profile.name
+    timeout_ms = int(payload["timeout_ms"])
+    settle_ms = int(payload["settle_ms"])
+    backup_root = Path(payload["db_backup_root"]).expanduser() / time.strftime("%Y%m%d-%H%M%S") / "chrome"
+
+    if not real_user_data_dir.is_dir():
+        raise SystemExit(f"chrome: user data dir does not exist: {real_user_data_dir}")
+    if not real_profile.is_dir():
+        raise SystemExit(f"chrome: profile does not exist: {real_profile}")
+    if chrome_cnt_extension_dir(real_profile) is None:
+        raise SystemExit(
+            "chrome: Clear New Tab cannot be opened because the extension package is not installed under "
+            f"{real_profile / 'Extensions' / CHROME_CNT_ID}.\n"
+            "Run nix-update, fully restart normal Chrome so policy can install Clear New Tab, "
+            "then rerun cnt-wallpaper-gallery."
+        )
+
+    def log(message: str) -> None:
+        print(message, flush=True)
+
+    with tempfile.TemporaryDirectory(prefix="cnt-chrome-import-", dir="/private/tmp") as temp_dir:
+        temp_user_data_dir = Path(temp_dir) / "Chrome"
+        temp_profile = temp_user_data_dir / profile_directory
+
+        log(f"chrome: copying profile clone {real_user_data_dir} -> {temp_user_data_dir}")
+        copy_chrome_user_data_dir(real_user_data_dir, temp_user_data_dir)
+        log("chrome: clearing Clear New Tab DB in temporary profile clone")
+        clear_chrome_cnt_storage(temp_profile)
+
+        log(f"chrome: launching {payload['executable']}")
+        log(f"chrome: using temporary user data dir {temp_user_data_dir}")
+        log(f"chrome: using profile {profile_directory}")
+
+        try:
+            with sync_playwright() as playwright:
+                context = playwright.chromium.launch_persistent_context(
+                    str(temp_user_data_dir),
+                    executable_path=payload["executable"],
+                    headless=False,
+                    args=[
+                        f"--profile-directory={profile_directory}",
+                        "--no-first-run",
+                        "--no-default-browser-check",
+                    ],
+                    ignore_default_args=["--disable-extensions"],
+                    timeout=timeout_ms,
+                )
+                try:
+                    page = context.new_page()
+                    log("chrome: Playwright launched temporary Chrome profile.")
+                    log(f"chrome: opening {CHROME_CNT_SETTINGS_URL}")
+                    page.goto(CHROME_CNT_SETTINGS_URL, wait_until="commit", timeout=timeout_ms)
+                    restore_chrome_backup_files(
+                        page,
+                        files,
+                        temp_profile,
+                        timeout_ms,
+                        settle_ms,
+                        log,
+                    )
+                except PlaywrightTimeoutError as error:
+                    raise SystemExit(f"chrome: timed out while importing into Clear New Tab: {error}") from error
+                finally:
+                    context.close()
+        except PlaywrightError as error:
+            raise SystemExit(
+                "chrome: Playwright could not drive the Clear New Tab import. "
+                "Make sure Chrome is closed and Clear New Tab is installed in the target profile.\n"
+                f"{error}"
+            ) from error
+
+        log(f"chrome: replacing real Clear New Tab DB in {real_profile}")
+        backup_paths = replace_chrome_cnt_storage(temp_profile, real_profile, backup_root)
+        if backup_paths:
+            log("chrome: previous Clear New Tab DB backup:")
+            for path in backup_paths:
+                log(f"  {path}")
+        else:
+            log("chrome: no previous Clear New Tab DB was present to back up")
+
+    return 0
+
+
+def apply_chrome_import(files: list[Path], target: Target, args: argparse.Namespace) -> None:
+    if not files:
+        return
+
+    if target_running(target) and not args.force:
+        raise SystemExit(
+            "chrome: Google Chrome appears to be running. Close Chrome before loading CNT "
+            "images, or rerun with --force to let Playwright try anyway."
+        )
+
+    payload_path: Path | None = None
+    try:
+        payload = {
+            "executable": str(chrome_executable(args)),
+            "files": [str(path) for path in files],
+            "profile": str(target.profile),
+            "db_backup_root": str(Path(args.db_backup_root).expanduser()),
+            "timeout_ms": args.chrome_import_timeout * 1000,
+            "settle_ms": args.chrome_import_settle_delay * 1000,
+        }
+        with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False, encoding="utf-8") as handle:
+            json.dump(payload, handle)
+            payload_path = Path(handle.name)
+
+        result = subprocess.run(
+            [
+                str(playwright_python()),
+                str(Path(__file__).resolve()),
+                "--_playwright-chrome-import",
+                str(payload_path),
+            ],
+            check=False,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise SystemExit(result.returncode)
+    finally:
+        if payload_path:
+            try:
+                payload_path.unlink()
+            except OSError:
+                pass
+
+
+def load_operation(args: argparse.Namespace, targets: list[Target]) -> None:
+    db_path = Path(args.db).expanduser()
+    if args.wallpaper_root:
+        eprint("Ignoring deprecated --wallpaper-root; image selection now comes from --db.")
+    content = args.content
+    image_types = normalize_image_types(args.image_types)
+    series_filter: set[str] = set()
+    artist_filter: set[str] = set()
+    hi_res_only = args.hi_res_only
+
+    if args.interactive_filters:
+        content, image_types, series_filter, artist_filter, hi_res_only = prompt_filters(db_path)
+    else:
+        available_series = available_values(db_path, "series", content, image_types, set(), set(), hi_res_only)
+        series_filter = canonicalize_filter(split_csv(args.series), available_series, "series")
+
+        available_artists = available_values(
+            db_path,
+            "artist",
+            content,
+            image_types,
+            set(),
+            set(),
+            hi_res_only,
+        )
+        artist_filter = canonicalize_filter(split_csv(args.artists), available_artists, "artists")
+
+    print(f"image types: {image_type_label(image_types)}")
+    if series_filter:
+        print(f"series filter: {', '.join(sorted(series_filter, key=str.casefold))}")
+    if artist_filter:
+        print(f"artist filter: {', '.join(sorted(artist_filter, key=str.casefold))}")
+
+    wallpapers = discover_images(db_path, content, image_types, series_filter, artist_filter, hi_res_only)
+    discovered_count = len(wallpapers)
+    wallpapers = dedupe_images(wallpapers)
+    if len(wallpapers) != discovered_count:
+        print(f"skipped duplicate images: {discovered_count - len(wallpapers)}")
+    print(f"selected images: {len(wallpapers)}")
+    if not wallpapers:
+        raise SystemExit("No images matched the requested filters.")
+
+    output_dir = Path(args.output_dir).expanduser() / time.strftime("%Y%m%d-%H%M%S")
+    files = write_backup_files(wallpapers, output_dir, args.chunk_mb, args.dry_run)
+    if args.dry_run:
+        print_manual_import_instructions(targets, files)
+        return
+
+    chrome_targets = [target for target in targets if target.name == "chrome"]
+    firefox_targets = [target for target in targets if target.name == "firefox"]
+
+    if chrome_targets and not args.no_apply:
+        apply_chrome_import(files, chrome_targets[0], args)
+    elif chrome_targets:
+        print("chrome: wrote import files only because --no-apply was set.")
+
+    if firefox_targets:
+        print()
+        print("firefox: wrote import files, but did not modify Firefox CNT storage.")
+        print("firefox: restore them through Clear New Tab's Upload backup control.")
+
+    manual_targets = targets if args.no_apply else firefox_targets
+    if manual_targets:
+        print_manual_import_instructions(manual_targets, files)
+    else:
+        print_import_files(files)
+
+
+def clear_operation(args: argparse.Namespace, targets: list[Target]) -> None:
+    backup_root = Path(args.db_backup_root).expanduser() / time.strftime("%Y%m%d-%H%M%S")
+    for target in targets:
+        backup_and_clear(target, backup_root, args.dry_run, args.force)
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Clear Clear New Tab DBs or load shared image import files."
+    )
+    parser.add_argument("--operation", choices=["clear", "load"])
+    parser.add_argument("--scope", choices=["both", "chrome", "firefox"])
+    parser.add_argument("--content", choices=["all", "sfw", "nsfw"], default="all")
+    parser.add_argument(
+        "--image-types",
+        choices=["all", "both", "wallpapers", "portraits"],
+        help="For load: include both image types, wallpapers only, or portraits only. Defaults to wallpapers for non-interactive runs.",
+    )
+    parser.add_argument("--series", help="Comma-separated series names to include.")
+    parser.add_argument("--artists", help="Comma-separated artist names to include.")
+    parser.add_argument("--hi-res-only", action="store_true")
+    parser.add_argument("--db", default=str(DEFAULT_SHARED_IMAGES_DB), help="Path to the shared-images SQLite database.")
+    parser.add_argument("--wallpaper-root", help=argparse.SUPPRESS)
+    parser.add_argument("--output-dir", default=str(Path.home() / ".cache/cnt-wallpaper-gallery/imports"))
+    parser.add_argument("--db-backup-root", default=str(Path.home() / ".cache/cnt-wallpaper-gallery/db-backups"))
+    parser.add_argument("--chunk-mb", type=int, default=DEFAULT_CHROME_CHUNK_MB)
+    parser.add_argument("--no-apply", action="store_true", help="For load: write import files without trying Chrome UI import automation.")
+    parser.add_argument("--chrome-executable", help="Path to the Google Chrome executable for Playwright import automation.")
+    parser.add_argument("--chrome-import-timeout", type=int, default=180, help="Seconds to wait for Playwright to import through Chrome.")
+    parser.add_argument("--chrome-import-settle-delay", type=int, default=5, help="Seconds the temporary Chrome CNT DB must stay unchanged before it is copied back.")
+    parser.add_argument("--_playwright-chrome-import", help=argparse.SUPPRESS)
+    parser.add_argument("--skip-clear", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--force", action="store_true", help="Continue even if the target browser appears to be running.")
+    parser.add_argument("--dry-run", action="store_true")
+    return parser.parse_args()
+
+
+def main() -> int:
+    args = parse_args()
+    if args._playwright_chrome_import:
+        return playwright_chrome_import_from_payload(Path(args._playwright_chrome_import))
+
+    if args.operation is None:
+        args.operation = choose_menu(
+            "Base operation",
+            {
+                "1": ("Clear the CNT DB", "clear"),
+                "2": ("Load images into Clear New Tab", "load"),
+            },
+        )
+
+    if args.scope is None:
+        args.scope = choose_menu(
+            "Required browser scope",
+            {
+                "1": ("Both Chrome and Firefox", "both"),
+                "2": ("Chrome only", "chrome"),
+                "3": ("Firefox only", "firefox"),
+            },
+        )
+
+    args.interactive_filters = args.operation == "load" and not (
+        args.series or args.artists or args.image_types or args.hi_res_only or args.content != "all"
+    )
+
+    targets = resolve_targets(args.scope)
+    if args.operation == "clear":
+        clear_operation(args, targets)
+    else:
+        load_operation(args, targets)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

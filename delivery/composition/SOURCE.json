@@ -1,0 +1,38 @@
+{
+  "schema": "browser-ux-composition-delivery-source-v1",
+  "owner": "composition",
+  "targetHost": "example-current-mac",
+  "predecessorHost": "example-previous-mac",
+  "originalFiles": {
+    "flake.nix": "8d76b5c4199234ca4c0064846cb553375b56b09f0fc1405b188326da28a11922",
+    "lib/browser-ux-host-selection.nix": "ABSENT",
+    "localConfig/browser-ux.toml": "9bd828d8839188426716989a3a2780635431cd9f0a00a78d477212cb1b48c8ab"
+  },
+  "patches": {
+    "composition.patch": "09e4e1869ad6726be039b6413675176360809ed3ef21b78630039bffa04c853c",
+    "browser-ux.toml.patch": "0200a92fd76b5f7bf58f3ab2d7dbc3fce558efdc61cc0e5d505d6cda5ee907e6"
+  },
+  "candidateFiles": {
+    "flake.nix": "77f2363faf3bb4f4a79b0f0c5383db9cc0938ad14d393906b14e67a024c2ac16",
+    "lib/browser-ux-host-selection.nix": "0901df5ad6a311d4224abc7404fd47830b1dad259ebd511a6a20040b375e9a80"
+  },
+  "candidateLocalConfigSha256": "f586c5c77e16b4f5f3ba701cd5fc3cb708da9ef1fad4e9aa1b4b1e849c8fd1c7",
+  "observedCheckoutHead": "0000000000000000000000000000000000000001",
+  "activePrivatePublicPin": "0000000000000000000000000000000000000002",
+  "activePrivateCorePin": "0000000000000000000000000000000000000003",
+  "browserUxLockedDeployPin": "0000000000000000000000000000000000000004",
+  "activeSelection": "private composition from maintained local config; normal matched pins required before rollout",
+  "replacementCasks": [
+    "vivaldi",
+    "floorp"
+  ],
+  "caskObservation": "Existing Homebrew-managed installations; no Homebrew mutation",
+  "hostSelection": "Non-target projections omit replacements and Apple/Proton trial; selected closed module defaults govern. Current target projection is unchanged.",
+  "runtime": "UNVERIFIED",
+  "transitionRepair": {
+    "authority": "Explicit transition repair overlay; historical rollout archive remains immutable",
+    "historicalArchiveSha256": "b02843398cdf94c16460f956813606b146ba8607755f65b82535ae89ba5f9b95",
+    "actualOldBrowserRevision": "0000000000000000000000000000000000000004",
+    "regression": "tests/composition-host-transition.nix accepts actual old/new committed module trees"
+  }
+}

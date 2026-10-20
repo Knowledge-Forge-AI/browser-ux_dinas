@@ -1,0 +1,9 @@
+{
+  "allowed_origins": [
+    "chrome-extension://oboonakemofpalcgghocfoadofidjkkk/"
+  ],
+  "description": "KeePassXC integration with native messaging support",
+  "name": "org.keepassxc.keepassxc_browser",
+  "path": "/Applications/KeePassXC.app/Contents/MacOS/keepassxc-proxy",
+  "type": "stdio"
+}

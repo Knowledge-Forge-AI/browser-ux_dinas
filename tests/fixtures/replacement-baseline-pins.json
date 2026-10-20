@@ -1,0 +1,52 @@
+{
+  "cases": {
+    "bridgeOptOut": {
+      "args": {
+        "keepassxcEnabled": false,
+        "optOut": [
+          "chrome:oboonakemofpalcgghocfoadofidjkkk",
+          "firefox:keepassxc-browser@keepassxc.org"
+        ]
+      },
+      "chrome": "983ddf698e6667cfe9cac1ca7d96fdac62b5308d575661f798b6c3a1b2f05386",
+      "firefox": "920b12770d85cbe755871bd9a446e6318bd944a7326cfcfec9124dc261280c49"
+    },
+    "default": {
+      "args": {
+        "keepassxcEnabled": true,
+        "optOut": []
+      },
+      "chrome": "b71d11de460129d0f080a4458c8a35fbafdc121531045f07cf208e854285cd65",
+      "firefox": "adb3d9c68f3a0f721c9dce0a82367aed10c4af5df870edaa3880d3eee0cbf26f"
+    },
+    "disabled": {
+      "args": {
+        "keepassxcEnabled": false,
+        "optOut": []
+      },
+      "chrome": "094e65ca2bc1113bc51661ff3889702863d4cf1b7df01356b1c294171ff16dc4",
+      "firefox": "1ff212c76f778ace4729623290e6e47094b48c9301ad5006a2f2730f54c21383"
+    },
+    "fullOptOut": {
+      "args": {
+        "keepassxcEnabled": false,
+        "optOut": [
+          "chrome:ckkdlimhmcjmikdlpkmbgfkaikojcbjk",
+          "chrome:efaidnbmnnnibpcajpcglclefindmkaj",
+          "chrome:efknglbfhoddmmfabeihlemgekhhnabb",
+          "chrome:hlkenndednhfkekhgcdicdfddnkalmdm",
+          "chrome:hoombieeljmmljlkjmnheibnpciblicm",
+          "chrome:lmjnegcaeklhafolokijcfjliaokphfk",
+          "firefox:markdown-viewer@outofindex.com",
+          "firefox:{b9db16a4-6edc-47ec-a1f4-b86292ed211d}",
+          "firefox:{c3c10168-4186-445c-9c5b-63f12b8e2c87}",
+          "chrome:oboonakemofpalcgghocfoadofidjkkk",
+          "firefox:keepassxc-browser@keepassxc.org"
+        ]
+      },
+      "chrome": "e7415afbf81f9b75c8fe8737157f2d5517001d2bef58dde81a19fb35b4e51bab",
+      "firefox": "9c9e3f79cb5486665ed8188713d68a07d3046425832e1c516b3d5f5be99b9fd2"
+    }
+  },
+  "schema": "browser-ux-family-baseline-pins-v1"
+}

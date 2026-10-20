@@ -1,0 +1,346 @@
+#!/usr/bin/env python3
+import base64
+import collections
+import json
+import os
+import socket
+import sys
+import time
+import urllib.parse
+import urllib.request
+
+VIDEO_SITES = ("youtube", "crunchyroll", "netflix", "prime-video", "twitch")
+
+MEDIA_EXPRESSION = r"""
+(() => {
+  const media = Array.from(document.querySelectorAll("video,audio"));
+  if (media.length === 0) {
+    return { playing: false, mediaCount: 0 };
+  }
+
+  const playing = media.some((element) =>
+    !element.paused &&
+    !element.ended &&
+    element.readyState >= HTMLMediaElement.HAVE_CURRENT_DATA
+  );
+
+  return {
+    playing,
+    mediaCount: media.length,
+    states: media.map((element) => ({
+      paused: element.paused,
+      ended: element.ended,
+      readyState: element.readyState,
+      currentTime: element.currentTime || 0
+    }))
+  };
+})()
+""".strip()
+
+
+def usage() -> int:
+    print("Usage: brave-youtube-cdp [page-state|media-state|close-browser] <port>", file=sys.stderr)
+    return 2
+
+
+def load_targets(port: int):
+    url = f"http://127.0.0.1:{port}/json/list"
+    with urllib.request.urlopen(url, timeout=1.0) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def load_version(port: int):
+    url = f"http://127.0.0.1:{port}/json/version"
+    with urllib.request.urlopen(url, timeout=1.0) as response:
+        return json.loads(response.read().decode("utf-8"))
+
+
+def recv_exact(sock: socket.socket, size: int) -> bytes:
+    data = b""
+    while len(data) < size:
+        chunk = sock.recv(size - len(data))
+        if not chunk:
+            raise RuntimeError("websocket closed")
+        data += chunk
+    return data
+
+
+def websocket_send(sock: socket.socket, payload: str) -> None:
+    data = payload.encode("utf-8")
+    header = bytearray([0x81])
+    length = len(data)
+
+    if length < 126:
+        header.append(0x80 | length)
+    elif length < 65536:
+        header.extend([0x80 | 126, (length >> 8) & 0xFF, length & 0xFF])
+    else:
+        header.append(0x80 | 127)
+        header.extend(length.to_bytes(8, "big"))
+
+    mask = os.urandom(4)
+    masked = bytes(byte ^ mask[index % 4] for index, byte in enumerate(data))
+    sock.sendall(bytes(header) + mask + masked)
+
+
+def websocket_recv(sock: socket.socket) -> str:
+    while True:
+        first, second = recv_exact(sock, 2)
+        opcode = first & 0x0F
+        masked = second & 0x80
+        length = second & 0x7F
+
+        if length == 126:
+            length = int.from_bytes(recv_exact(sock, 2), "big")
+        elif length == 127:
+            length = int.from_bytes(recv_exact(sock, 8), "big")
+
+        mask = recv_exact(sock, 4) if masked else b""
+        payload = recv_exact(sock, length) if length else b""
+        if masked:
+            payload = bytes(byte ^ mask[index % 4] for index, byte in enumerate(payload))
+
+        if opcode == 0x8:
+            raise RuntimeError("websocket close frame")
+        if opcode == 0x9:
+            continue
+        if opcode in (0x1, 0x0):
+            return payload.decode("utf-8")
+
+
+def websocket_connect(ws_url: str) -> socket.socket:
+    parsed = urllib.parse.urlparse(ws_url)
+    host = parsed.hostname or "127.0.0.1"
+    port = parsed.port or 80
+    path = parsed.path or "/"
+    if parsed.query:
+        path += f"?{parsed.query}"
+
+    sock = socket.create_connection((host, port), timeout=1.5)
+    sock.settimeout(2.0)
+
+    key = base64.b64encode(os.urandom(16)).decode("ascii")
+    request = (
+        f"GET {path} HTTP/1.1\r\n"
+        f"Host: {host}:{port}\r\n"
+        "Upgrade: websocket\r\n"
+        "Connection: Upgrade\r\n"
+        f"Sec-WebSocket-Key: {key}\r\n"
+        "Sec-WebSocket-Version: 13\r\n"
+        "\r\n"
+    )
+    sock.sendall(request.encode("ascii"))
+
+    headers = b""
+    while b"\r\n\r\n" not in headers:
+        chunk = sock.recv(4096)
+        if not chunk:
+            raise RuntimeError("websocket handshake failed")
+        headers += chunk
+
+    status_line = headers.split(b"\r\n", 1)[0]
+    if b" 101 " not in status_line:
+        raise RuntimeError(status_line.decode("utf-8", "replace"))
+
+    return sock
+
+
+def evaluate(ws_url: str, expression: str):
+    message_id = int(time.time() * 1000) % 1000000000
+    payload = {
+        "id": message_id,
+        "method": "Runtime.evaluate",
+        "params": {
+            "expression": expression,
+            "returnByValue": True,
+            "awaitPromise": False,
+        },
+    }
+
+    with websocket_connect(ws_url) as sock:
+        websocket_send(sock, json.dumps(payload, separators=(",", ":")))
+        while True:
+            response = json.loads(websocket_recv(sock))
+            if response.get("id") == message_id:
+                if "exceptionDetails" in response:
+                    raise RuntimeError("javascript exception")
+                return response.get("result", {}).get("result", {}).get("value")
+
+
+def send_browser_close(ws_url: str) -> None:
+    message_id = int(time.time() * 1000) % 1000000000
+    payload = {"id": message_id, "method": "Browser.close"}
+
+    with websocket_connect(ws_url) as sock:
+        websocket_send(sock, json.dumps(payload, separators=(",", ":")))
+
+
+def page_targets(targets):
+    pages = []
+    for target in targets:
+        target_type = target.get("type")
+        url = str(target.get("url", ""))
+        if target_type == "page":
+            pages.append(target)
+        elif target_type == "other" and url.startswith(("http://", "https://")):
+            pages.append(target)
+    return pages
+
+
+def host_matches(host: str, domain: str) -> bool:
+    return host == domain or host.endswith(f".{domain}")
+
+
+def video_site_name(url: str):
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return None
+
+    host = (parsed.hostname or "").lower()
+    path = parsed.path or "/"
+    path_lower = path.lower()
+
+    if host_matches(host, "youtube.com"):
+        return "youtube"
+    if host_matches(host, "crunchyroll.com"):
+        return "crunchyroll"
+    if host_matches(host, "netflix.com"):
+        return "netflix"
+    if host_matches(host, "primevideo.com"):
+        return "prime-video"
+    if host_matches(host, "twitch.tv"):
+        return "twitch"
+    if host_matches(host, "amazon.com") and path_lower.startswith(("/gp/video", "/prime-video", "/video")):
+        return "prime-video"
+
+    return None
+
+
+def video_targets(targets):
+    matched = []
+    for target in page_targets(targets):
+        site = video_site_name(str(target.get("url", "")))
+        if not site:
+            continue
+
+        target_with_site = dict(target)
+        target_with_site["_video_site"] = site
+        matched.append(target_with_site)
+    return matched
+
+
+def format_site_counts(targets) -> str:
+    counts = collections.Counter(str(target.get("_video_site", "unknown")) for target in targets)
+    if not counts:
+        return "none"
+    return ",".join(f"{site}:{counts[site]}" for site in VIDEO_SITES if counts.get(site))
+
+
+def page_state(port: int) -> int:
+    try:
+        targets = load_targets(port)
+    except Exception as error:
+        print(f"unavailable reason={type(error).__name__}")
+        return 0
+
+    pages = page_targets(targets)
+    videos = video_targets(targets)
+    if pages:
+        print(
+            f"pages page_count={len(pages)} video_count={len(videos)} "
+            f"sites={format_site_counts(videos)}"
+        )
+    else:
+        print("no_pages page_count=0 video_count=0 sites=none")
+    return 0
+
+
+def media_state(port: int) -> int:
+    try:
+        targets = load_targets(port)
+    except Exception as error:
+        print(f"unknown reason={type(error).__name__}")
+        return 0
+
+    pages = page_targets(targets)
+    videos = video_targets(targets)
+    if not pages:
+        print("unknown page_count=0 video_count=0 sites=none reason=no_page_targets")
+        return 0
+    if not videos:
+        print(f"unknown page_count={len(pages)} video_count=0 sites=none reason=no_video_targets")
+        return 0
+
+    unknowns = 0
+    media_count = 0
+    site_counts = format_site_counts(videos)
+    for target in videos:
+        ws_url = target.get("webSocketDebuggerUrl")
+        if not ws_url:
+            unknowns += 1
+            continue
+        try:
+            value = evaluate(ws_url, MEDIA_EXPRESSION)
+        except Exception:
+            unknowns += 1
+            continue
+
+        if not isinstance(value, dict):
+            unknowns += 1
+            continue
+
+        media_count += int(value.get("mediaCount") or 0)
+        if value.get("playing"):
+            print(
+                f"playing page_count={len(pages)} video_count={len(videos)} sites={site_counts} "
+                f"media_count={media_count} unknown_count={unknowns}"
+            )
+            return 0
+
+    if unknowns:
+        print(
+            f"unknown page_count={len(pages)} video_count={len(videos)} sites={site_counts} "
+            f"media_count={media_count} unknown_count={unknowns}"
+        )
+        return 0
+
+    print(
+        f"not_playing page_count={len(pages)} video_count={len(videos)} sites={site_counts} "
+        f"media_count={media_count} unknown_count=0"
+    )
+    return 0
+
+
+def close_browser(port: int) -> int:
+    try:
+        version = load_version(port)
+        ws_url = version.get("webSocketDebuggerUrl")
+        if not ws_url:
+            return 1
+        send_browser_close(ws_url)
+        return 0
+    except Exception:
+        return 1
+
+
+def main() -> int:
+    if len(sys.argv) != 3:
+        return usage()
+
+    command = sys.argv[1]
+    try:
+        port = int(sys.argv[2])
+    except ValueError:
+        return usage()
+
+    if command == "page-state":
+        return page_state(port)
+    if command == "media-state":
+        return media_state(port)
+    if command == "close-browser":
+        return close_browser(port)
+    return usage()
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

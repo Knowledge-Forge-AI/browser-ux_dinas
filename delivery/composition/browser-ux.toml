@@ -1,0 +1,23 @@
+[browser-ux]
+schema = 1
+
+[browser-ux.keepassxc]
+enable = true
+
+[browser-ux.extensions.apple-proton-trial]
+enable = true
+host = "example-current-mac"
+vivaldi-vpn-route = "standalone"
+integrated-vpn-id = ""
+
+[browser-ux.replacements.vivaldi]
+enable = true
+inherit-from = "chrome"
+
+[browser-ux.replacements.vivaldi.mail]
+enable = true
+preserve-resolved = true
+
+[browser-ux.replacements.floorp]
+enable = true
+inherit-from = "firefox"

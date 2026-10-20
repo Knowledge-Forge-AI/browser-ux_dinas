@@ -1,0 +1,12 @@
+/* Injected with origin USER: an important user declaration outranks every
+   author declaration, including author !important, layered and inline styles.
+   scrollbar-width auto keeps the platform's normal width and defeats author
+   none/thin. A non-auto scrollbar-color makes browsers ignore author
+   ::-webkit-scrollbar rules (display:none, zero size, transparent parts) and
+   defeats transparent author colors; neutral system colors follow the
+   element's color scheme. Both only affect scroll containers; overflow is
+   never touched. */
+* {
+  scrollbar-width: auto !important;
+  scrollbar-color: GrayText Canvas !important;
+}

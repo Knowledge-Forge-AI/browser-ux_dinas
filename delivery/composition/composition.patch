@@ -1,0 +1,81 @@
+--- a/flake.nix
++++ b/flake.nix
+@@ -168,7 +168,12 @@
+         if !(input ? applicationClaims) then
+           builtins.throw "composition-nd: ${name} must declare applicationClaims"
+         else
+-          claimsLib.attachOwner name input.applicationClaims;
++          let
++            rawClaims =
++              if name == "browser-ux" && input ? applicationClaimsFor then
++                input.applicationClaimsFor (moduleConfiguration.browser-ux.configuration.replacements or { })
++              else input.applicationClaims;
++          in claimsLib.attachOwner name rawClaims;
+       applicationClaimsAggregate = claimsLib.attachOwner "core" core.applicationClaims
+         ++ builtins.concatMap
+           (entry: claimsForInput entry.name inputs.${entry.input})
+@@ -372,6 +377,8 @@
+         && lockRefMismatchRejected
+         && noRegisteredInputsAreDarwinConfigurations;
+ 
++      browserHostSelection = import ./lib/browser-ux-host-selection.nix { lib = pkgs.lib; };
++
+       mkDarwinConfigurationWith = compositionModules: compositionOverlays:
+         {
+           hostName,
+@@ -383,7 +390,11 @@
+         assert applicationClaimsGate;
+         core.lib.mkDarwinConfiguration {
+           inherit hostName hostConfig;
+-          extraModules = compositionModules ++ [ moduleConfiguration ] ++ extraModules;
++          extraModules = compositionModules
++            ++ [ (browserHostSelection.moduleForHost hostName moduleConfiguration) ]
++            ++ pkgs.lib.optionals (browserHostSelection.casksForHost hostName moduleConfiguration != [ ]) [
++              { homebrew.casks = browserHostSelection.casksForHost hostName moduleConfiguration; }
++            ] ++ extraModules;
+           extraOverlays = compositionOverlays ++ extraOverlays;
+         };
+       mkDarwinConfiguration = mkDarwinConfigurationWith
+@@ -433,7 +444,8 @@
+         activationText = configuration.config.system.activationScripts.postActivation.text or "";
+       };
+       realizedClaimsValid = builtins.all
+-        (host: builtins.all (claimIsRealized (realizationSurfaces self.darwinConfigurations.${host})) moduleClaims)
++        (host: builtins.all (claimIsRealized (realizationSurfaces self.darwinConfigurations.${host}))
++          (builtins.filter (browserHostSelection.claimAppliesToHost host) moduleClaims))
+         publicHostNames;
+       realizationTestsValid =
+         let
+--- /dev/null
++++ b/lib/browser-ux-host-selection.nix
+@@ -0,0 +1,30 @@
++{ lib }:
++let
++  targetHost = "example-current-mac";
++  replacementsOf = projection: projection.browser-ux.configuration.replacements or { };
++in
++{
++  moduleForHost = host: projection:
++    if host == targetHost || !(projection ? browser-ux)
++      || !(projection.browser-ux ? configuration) then projection
++    else projection // {
++      browser-ux = projection.browser-ux // {
++        # These sections belong only to the target host. Omit them so both
++        # legacy closed schemas and current disabled defaults remain valid.
++        configuration = builtins.removeAttrs projection.browser-ux.configuration [ "replacements" ]
++          // lib.optionalAttrs (projection.browser-ux.configuration ? extensions) {
++            extensions = builtins.removeAttrs projection.browser-ux.configuration.extensions [ "apple-proton-trial" ];
++          };
++      };
++    };
++
++  casksForHost = host: projection:
++    if host != targetHost then [ ]
++    else (lib.optional ((replacementsOf projection).vivaldi.enable or false) "vivaldi")
++      ++ (lib.optional ((replacementsOf projection).floorp.enable or false) "floorp");
++
++  claimAppliesToHost = host: entry:
++    if entry.owner == "browser-ux"
++      && builtins.elem entry.claim.id [ "bundle:com.vivaldi.Vivaldi" "bundle:app.floorp.Floorp" ]
++    then host == targetHost else true;
++}

@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "https://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>BlockThirdPartyCookies</key>
+  <true/>
+  <key>DefaultAutomaticDownloadsSetting</key>
+  <integer>3</integer>
+  <key>DefaultGeolocationSetting</key>
+  <integer>3</integer>
+  <key>DefaultMediaStreamSetting</key>
+  <integer>3</integer>
+  <key>AudioCaptureAllowedUrls</key>
+  <array>
+    <string>https://meet.google.com/</string>
+    <string>https://[*.]zoom.us/</string>
+    <string>https://[*.]zoomgov.com/</string>
+    <string>https://teams.microsoft.com/</string>
+    <string>https://[*.]teams.microsoft.com/</string>
+    <string>https://teams.live.com/</string>
+    <string>https://teams.cloud.microsoft/</string>
+    <string>https://[*.]webex.com/</string>
+    <string>https://[*.]goto.com/</string>
+    <string>https://[*.]gotomeeting.com/</string>
+    <string>https://[*.]ringcentral.com/</string>
+    <string>https://[*.]whereby.com/</string>
+    <string>https://meet.jit.si/</string>
+    <string>https://doxy.me/</string>
+    <string>https://[*.]doxy.me/</string>
+    <string>https://[*.]simplepractice.com/</string>
+    <string>https://[*.]therapynotes.com/</string>
+    <string>https://[*.]mdlive.com/</string>
+    <string>https://[*.]amwell.com/</string>
+    <string>https://[*.]teladoc.com/</string>
+    <string>https://[*.]teladochealth.com/</string>
+  </array>
+  <key>VideoCaptureAllowedUrls</key>
+  <array>
+    <string>https://meet.google.com/</string>
+    <string>https://[*.]zoom.us/</string>
+    <string>https://[*.]zoomgov.com/</string>
+    <string>https://teams.microsoft.com/</string>
+    <string>https://[*.]teams.microsoft.com/</string>
+    <string>https://teams.live.com/</string>
+    <string>https://teams.cloud.microsoft/</string>
+    <string>https://[*.]webex.com/</string>
+    <string>https://[*.]goto.com/</string>
+    <string>https://[*.]gotomeeting.com/</string>
+    <string>https://[*.]ringcentral.com/</string>
+    <string>https://[*.]whereby.com/</string>
+    <string>https://meet.jit.si/</string>
+    <string>https://doxy.me/</string>
+    <string>https://[*.]doxy.me/</string>
+    <string>https://[*.]simplepractice.com/</string>
+    <string>https://[*.]therapynotes.com/</string>
+    <string>https://[*.]mdlive.com/</string>
+    <string>https://[*.]amwell.com/</string>
+    <string>https://[*.]teladoc.com/</string>
+    <string>https://[*.]teladochealth.com/</string>
+  </array>
+  <key>DefaultNotificationsSetting</key>
+  <integer>3</integer>
+  <key>DnsOverHttpsMode</key>
+  <string>off</string>
+  <key>HttpsOnlyMode</key>
+  <string>force_balanced_enabled</string>
+  <key>ExtensionInstallForcelist</key>
+  <array>
+    <string>felphkbfjadmcejnibcmcncimlappdde;https://clients2.google.com/service/update2/crx</string>
+  </array>
+
+  <key>ExtensionSettings</key>
+  <dict>
+    <key>*</key>
+    <dict>
+      <key>installation_mode</key>
+      <string>allowed</string>
+    </dict>
+
+    <key>ddkjiahejlhfcafbddmgiahcphecmpfh</key>
+    <dict>
+      <key>installation_mode</key>
+      <string>normal_installed</string>
+      <key>update_url</key>
+      <string>https://clients2.google.com/service/update2/crx</string>
+    </dict>
+
+    <key>felphkbfjadmcejnibcmcncimlappdde</key>
+    <dict>
+      <key>installation_mode</key>
+      <string>force_installed</string>
+      <key>update_url</key>
+      <string>https://clients2.google.com/service/update2/crx</string>
+    </dict>
+
+    <key>oboonakemofpalcgghocfoadofidjkkk</key>
+    <dict>
+      <key>installation_mode</key>
+      <string>normal_installed</string>
+      <key>update_url</key>
+      <string>https://clients2.google.com/service/update2/crx</string>
+    </dict>
+
+    <key>hlkenndednhfkekhgcdicdfddnkalmdm</key>
+    <dict>
+      <key>installation_mode</key>
+      <string>normal_installed</string>
+      <key>update_url</key>
+      <string>https://clients2.google.com/service/update2/crx</string>
+    </dict>
+
+    <key>hoombieeljmmljlkjmnheibnpciblicm</key>
+    <dict>
+      <key>installation_mode</key>
+      <string>normal_installed</string>
+      <key>update_url</key>
+      <string>https://clients2.google.com/service/update2/crx</string>
+    </dict>
+
+    <key>efaidnbmnnnibpcajpcglclefindmkaj</key>
+    <dict>
+      <key>installation_mode</key>
+      <string>normal_installed</string>
+      <key>update_url</key>
+      <string>https://clients2.google.com/service/update2/crx</string>
+    </dict>
+
+    <key>lmjnegcaeklhafolokijcfjliaokphfk</key>
+    <dict>
+      <key>installation_mode</key>
+      <string>normal_installed</string>
+      <key>update_url</key>
+      <string>https://clients2.google.com/service/update2/crx</string>
+    </dict>
+
+    <key>ckkdlimhmcjmikdlpkmbgfkaikojcbjk</key>
+    <dict>
+      <key>installation_mode</key>
+      <string>normal_installed</string>
+      <key>update_url</key>
+      <string>https://clients2.google.com/service/update2/crx</string>
+    </dict>
+
+    <key>efknglbfhoddmmfabeihlemgekhhnabb</key>
+    <dict>
+      <key>installation_mode</key>
+      <string>normal_installed</string>
+      <key>update_url</key>
+      <string>https://clients2.google.com/service/update2/crx</string>
+    </dict>
+  </dict>
+</dict>
+</plist>

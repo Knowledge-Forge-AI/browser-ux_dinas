@@ -1,0 +1,112 @@
+{
+  "schema": "browser-ux-replacement-system1-catalog-v1",
+  "suites": {
+    "vivaldi": {
+      "vivaldi-browser-core": {
+        "capability": "vivaldi-browser-core",
+        "requiredForReplacement": true,
+        "runsRegardlessOf": [
+          "VIVALDI_MAIL_STARTUP_CRASH_8_2_4133_83"
+        ],
+        "mailPosture": "PRESERVE_CURRENT_HOST_ENABLED_SEPARATE_SYNTHETIC_LAB",
+        "cases": [
+          "launch",
+          "policy-readback",
+          "extension-parity",
+          "keepassxc",
+          "cnt-where-compatible",
+          "scrollbar",
+          "https-doh-content-permissions",
+          "password-manager-posture",
+          "fullscreen-ui",
+          "profile-isolation",
+          "normal-browsing",
+          "ubol",
+          "extension-coexistence"
+        ],
+        "credentials": "NONE",
+        "managedPolicyCharacterization": "personal-host-attended-or-off-host-tart",
+        "routeScope": "personal-host-attended"
+      },
+      "vivaldi-mail": {
+        "capability": "vivaldi-mail",
+        "requiredForReplacement": false,
+        "chromeParity": false,
+        "cases": [
+          "disabled-by-default-while-held",
+          "synthetic-tls-imap-smtp-account",
+          "small-corpus-control",
+          "high-cardinality-synthetic-corpus",
+          "startup-memory-renderer-stability",
+          "body-prefetch-vs-header-cardinality"
+        ],
+        "accounts": "synthetic-local-tls-imap-smtp",
+        "disposableProfile": true,
+        "realCredentials": false,
+        "realMail": false,
+        "tartImageCredentials": "FORBIDDEN",
+        "realProtonBridge": "credentialed-manual-separate-safe-test-account-approval",
+        "regressionFixture": {
+          "version": "8.2.4133.83",
+          "stableControlMetadataRecords": 2680,
+          "oomMetadataRecords": 205133,
+          "source": "single-affected-profile-retained-shared-state",
+          "universalThreshold": false,
+          "countVsPathology": "UNRESOLVED",
+          "syntheticOnly": true
+        }
+      }
+    },
+    "floorp": {
+      "floorp-browser-core": {
+        "capability": "floorp-browser-core",
+        "requiredForReplacement": true,
+        "runsRegardlessOf": [],
+        "cases": [
+          "launch",
+          "policy-readback",
+          "extension-parity",
+          "keepassxc",
+          "cnt-where-compatible",
+          "scrollbar",
+          "https-doh-content-permissions",
+          "password-manager-posture",
+          "fullscreen-ui",
+          "profile-isolation",
+          "normal-browsing",
+          "ubo",
+          "extension-coexistence"
+        ],
+        "credentials": "NONE",
+        "managedPolicyCharacterization": "personal-host-attended-or-off-host-tart",
+        "routeScope": "personal-host-attended"
+      }
+    }
+  },
+  "extensionTrials": {
+    "browsers": [
+      "chrome",
+      "firefox",
+      "vivaldi",
+      "floorp"
+    ],
+    "products": [
+      "Proton Pass",
+      "Proton VPN",
+      "iCloud Passwords"
+    ],
+    "catalogSource": "config/browser/apple-proton-extensions.json",
+    "fixtures": [
+      "synthetic-password",
+      "synthetic-totp",
+      "synthetic-alias",
+      "coexistence-opt-outs",
+      "vpn-single-instance-disconnected",
+      "optional-helper-blocked",
+      "localhost-native-bridge"
+    ],
+    "realSecrets": false,
+    "requiredForPersonalHost": false,
+    "labRoute": "off-host-tart"
+  }
+}

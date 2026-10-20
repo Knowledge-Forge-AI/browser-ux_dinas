@@ -1,0 +1,41 @@
+{
+  "schema": "browser-ux-replacement-mail-resolution-v1",
+  "resolutionDate": "2026-10-07",
+  "rebuildType": "live rebuild",
+  "acceptedPriorEvidence": {
+    "archiveSha256": "c150f29514f56983e580bf643349b0818d199c955f7927657c6761bef82c9d41",
+    "transportManifestSha256": "50f197450dce2dea715de8bbd15912305901d6bbebe1034173364a2f0d5f9629",
+    "provenance": "Prior machine evidence plus prior manager acceptance",
+    "terminalNarrative": "LIVE_MAIL_REBUILT_STABLE",
+    "accountAtRebuild": "OAuth task deferred then resolved by operator"
+  },
+  "accountStatus": "OPERATOR_REPORTED_RESOLVED",
+  "status": "OPERATOR_REPORTED_RESOLVED",
+  "currentDesired": {
+    "mail": true,
+    "calendar": true,
+    "feeds": true,
+    "selection": "PRESERVE_LIVE_SELECTION",
+    "settingWriter": false
+  },
+  "historicalIncident": {
+    "id": "VIVALDI_MAIL_STARTUP_CRASH_8_2_4133_83",
+    "retainedVerdict": "HOLD_RUNTIME_OOM",
+    "file": "config/browser/replacements/runtime-issues.json"
+  },
+  "preservation": {
+    "preserveLiveSelection": true,
+    "browserUxWrites": false,
+    "universalClearance": false,
+    "upstreamVendorFixClaimed": false,
+    "universalMessageCountThresholdClaimed": false,
+    "rollbackTouchesMail": false
+  },
+  "accountResolution": {
+    "reportedOn": "2026-10-07",
+    "provenance": "OPERATOR_REPORTED_RESOLVED",
+    "action": "Remaining account removed and re-added by user",
+    "automatedFiveAccountRecheck": false,
+    "accountMapEqualityRequired": false
+  }
+}

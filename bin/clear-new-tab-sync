@@ -1,0 +1,78 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'USAGE'
+Usage: clear-new-tab-sync [status|plan|brave-youtube] [--manifest SHA256]
+                          [--state-root DIR] [--shared-images-root DIR]
+
+Derive the Brave YouTube Clear New Tab consumer from verified Browser UX
+durable state. The normal Chrome profile is not an authority and is never read.
+
+Supported:
+  status          Read-only report: durable-state root, selected manifest (if
+                  any) and the Brave YouTube consumer verdict.
+  plan            Verify the selected stored manifest, every native part and
+                  every content reference, then print the bounded derived plan
+                  (JSON). Writes nothing.
+  brave-youtube   Operator-invoked only. Verifies the selected manifest, then
+                  refuses before the Brave target is opened: Chromium/Brave CNT
+                  import is unqualified until BUX5C. Nothing is copied.
+
+Options:
+  --manifest SHA256         Stored canonical manifest to consume. Required for
+                            plan and brave-youtube; there is no implicit head.
+  --state-root DIR          Explicit absolute durable-state root. Default:
+                            $HOME/.local/state/browser-ux/clear-new-tab (never
+                            created); a relocated XDG_STATE_HOME is refused.
+  --shared-images-root DIR  Root authorizing shared_images content references.
+
+Environment:
+  BRAVE_YOUTUBE_USER_DATA_DIR=~/Library/Application Support/Brave YouTube
+USAGE
+}
+
+script_path() {
+  local script_dir
+  local script_name
+
+  case "$0" in
+    /*)
+      printf '%s\n' "$0"
+      ;;
+    */*)
+      script_dir="$(/usr/bin/dirname "$0")"
+      script_name="$(/usr/bin/basename "$0")"
+      printf '%s/%s\n' "$(cd "$script_dir" && /bin/pwd -P)" "$script_name"
+      ;;
+    *)
+      command -v "$0"
+      ;;
+  esac
+}
+
+script_dir() {
+  /usr/bin/dirname "$(script_path)"
+}
+
+clear_new_tab_libexec_dir() {
+  printf '%s/../libexec/clear-new-tab\n' "$(script_dir)"
+}
+
+if [ "$#" -eq 0 ]; then
+  set -- status
+fi
+
+case "$1" in
+  status|plan|brave-youtube)
+    exec /usr/bin/python3 -I -B "$(clear_new_tab_libexec_dir)/brave-youtube-consumer.py" "$@"
+    ;;
+  -h|--help|help)
+    usage
+    ;;
+  *)
+    echo "clear-new-tab-sync: unknown command: $1" >&2
+    usage >&2
+    exit 2
+    ;;
+esac

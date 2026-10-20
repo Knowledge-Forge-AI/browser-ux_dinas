@@ -1,0 +1,546 @@
+<!doctype html>
+<html lang="en"><head>
+<script>
+// First head script: earliest fixture-owned page execution during parsing
+(function () {
+  const host = document.createElement('div');
+  host.id = 'early-closed-host';
+  document.documentElement.appendChild(host);
+  if (host) {
+    const root = host.attachShadow({mode: 'closed'});
+    const style = document.createElement('style');
+    style.textContent = '.box{overflow:auto;width:300px;height:180px}.tall{height:700px}';
+    root.appendChild(style);
+    const box = document.createElement('div');
+    box.className = 'box';
+    const tall = document.createElement('div');
+    tall.className = 'tall';
+    tall.textContent = 'Early inline closed root scroller (first script)';
+    box.appendChild(tall);
+    root.appendChild(box);
+    const dlg = document.createElement('dialog');
+    dlg.id = 'early-closed-dialog';
+    dlg.textContent = 'Early inline closed shadow modal dialog. All rails must suspend.';
+    const closeBtn = document.createElement('button');
+    closeBtn.textContent = 'Close';
+    closeBtn.addEventListener('click', () => dlg.close());
+    dlg.appendChild(closeBtn);
+    root.appendChild(dlg);
+    window.__openEarlyClosedDialog = () => dlg.showModal();
+    window.__closeEarlyClosedDialog = () => dlg.close();
+    const pop = document.createElement('div');
+    pop.id = 'early-popover'; pop.setAttribute('popover', 'manual');
+    pop.textContent = 'Early closed-root popover. All custom rails must disappear.';
+    const closePop = document.createElement('button');
+    closePop.textContent = 'Close popover';
+    closePop.setAttribute('popovertarget', pop.id); closePop.setAttribute('popovertargetaction', 'hide');
+    pop.appendChild(closePop); root.appendChild(pop);
+    const openPop = document.createElement('button'); openPop.textContent = 'Open early closed popover declaratively';
+    openPop.setAttribute('popovertarget', pop.id); openPop.setAttribute('popovertargetaction', 'show');
+    root.appendChild(openPop);
+    window.__openEarlyClosedPopover = () => pop.showPopover();
+    window.__closeEarlyClosedPopover = () => pop.hidePopover();
+  }
+})();
+if (new URLSearchParams(location.search).get('scene') === 'dsd-parser') {
+  // The parser attaches this root internally, bypassing attachShadow.
+  document.write('<div id="parser-dsd-host"><template shadowrootmode="closed"><div popover="manual">Parser closed root</div></template></div>');
+}
+</script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Browser UX R8 detached root reattach attended matrix</title>
+<style>
+:root { color-scheme: light dark; font: 16px system-ui; }
+body { margin: 20px; min-height: 180vh; }
+header, section { border: 1px solid GrayText; padding: 12px; margin: 12px 0; }
+section[hidden] { display: none; }
+.box { position: relative; overflow: auto; width: 300px; height: 180px; border: 2px solid GrayText; margin: 12px 0; }
+.tall { height: 700px; padding: 10px; box-sizing: border-box; background: linear-gradient(Canvas,ButtonFace); }
+.cover { position: absolute; right: 0; bottom: 0; width: 40px; height: 22%; z-index: 2147483647; background: Highlight; }
+.global-cover { position: fixed; bottom: 0; right: 0; height: 20vh; width: 100vw; z-index: 2147483647; background: Highlight; }
+.visual-cover { position: fixed; right: 0; top: 0; width: 32px; height: 100vh; z-index: 2147483647; pointer-events: none; background: Highlight; }
+.sticky { position: sticky; bottom: 0; height: 36px; background: Highlight; z-index: 2147483647; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.fixed-parent { position: fixed; right: 20px; top: 180px; width: 250px; height: 250px; }
+.fixed-child { position: fixed; right: 20px; top: 260px; width: 250px; height: 130px; }
+.clip { overflow: hidden; width: 80px; height: 50px; }
+.offscreen { position: absolute; left: -9999px; }
+.drawer { position: absolute; top: 0; left: 0; width: 300px; height: 180px; z-index: 100; background: Canvas; }
+html[data-scene="root-after"]::after { content: ""; position: fixed; right: 0; top: 0; width: 32px; height: 100vh; background: Highlight; z-index: 2147483647; }
+html[data-scene="root-mask"] { mask-image: linear-gradient(to right,black calc(100% - 32px),transparent calc(100% - 32px)); }
+html[data-scene="root-clip"] { clip-path: inset(0 32px 0 0); }
+output { display: block; white-space: pre-wrap; margin: 8px 0; }
+dialog { max-width: 70vw; }
+</style>
+</head><body>
+<!-- Early inline closed root: attached by the first script before any other content -->
+<div id="early-closed-container"></div>
+<script>document.getElementById('early-closed-container').appendChild(document.getElementById('early-closed-host'));</script>
+
+<header><h1>R8 detached root reattach attended matrix</h1>
+<p>This offline fixture validates the R8-DETACHED-ROOT1 (inheriting R7-COVERAGE-RECOVERY1 and R6-SHADOW-SENTINEL1 v0.4.0) top-layer shadow sentinel, coverage recovery, and detached root reattachment.
+It tests early inline closed roots (first script), closed modal dialogs, closed popovers, late open/closed
+shadow attachment, nested shadow roots, declarative shadow DOM (DSD) fail-closed suspension, budget saturation
+(&gt;256 roots), coverage throttling on 600-element batch mutations, structural &gt;60000-node subtree backoff,
+captured closed popover inside retained closed root detachment, mutation and reattachment, record-only foreign-realm shadow root attempt,
+and visible root rails recovery after dismissal. Retained challenge scenes (root-after, root-mask, root-clip, multi scrollers) verify ongoing occlusion resistance.</p>
+<label>Scene <select id="scene"></select></label>
+<p>For visible cases: drag thumb, click track, and wheel over the rail strip.
+When closed-shadow modal or popover UI is open, all Browser UX rails must suspend.
+Upon closing, visible root rails must recover cleanly.
+Permanent failure triggers (DSD APIs, &gt;256 budget overflow) must latch fail-closed permanently.</p>
+<button id="baseline">Reset baseline after intentional fixture changes</button>
+<button id="compare">Compare page layout/attributes</button><output id="layout-status">NOT_OBSERVED</output>
+</header>
+
+<section id="s1" data-expect="visible" data-scene="control early-closed"><span class="case-id">s1</span> <strong>Early inline closed root first script</strong>
+<p>Created by the first inline script before subsequent document parse. In Chrome and Firefox, the isolated coverage walk discovers author roots. If captured, rails remain active; if uncaptured, the sentinel latches UNCAPTURED_ROOT and suspends fail-closed.</p>
+<button id="early-modal-open">Open modal in early closed root</button>
+<button id="early-modal-close">Close modal in early closed root</button>
+<button onclick="window.__openEarlyClosedPopover()">Open early closed popover</button>
+<button onclick="window.__closeEarlyClosedPopover()">Close early closed popover</button>
+</section>
+
+<section id="s2" data-expect="visible" data-scene="control"><span class="case-id">s2</span> <strong>Control handshake baseline</strong>
+<p>Normal root document scroller and control nested scroller. Verifies startup announcement {v:1,type:"ready"} and isolated request exchange.</p>
+<div class="box" id="box-s2"><div class="tall">Control scroller s2</div></div>
+</section>
+
+<section id="s3" data-expect="suspended" data-scene="closed-modal"><span class="case-id">s3</span> <strong>Closed-shadow modal dialog</strong>
+<p>Modal dialog inside a closed shadow root. Opening the modal must suspend all extension rails; closing it must recover visible root rails cleanly.</p>
+<div id="closed-shadow-host"></div>
+<button id="closed-modal-open">Open closed-shadow modal</button>
+<button id="closed-modal-close">Close closed-shadow modal</button>
+</section>
+
+<section id="s4" data-expect="suspended" data-scene="closed-popover"><span class="case-id">s4</span> <strong>Closed-shadow popover</strong>
+<p>Popover element inside a closed shadow root. Opening the popover must suspend all extension rails; closing it must recover visible root rails cleanly.</p>
+<button id="closed-popover-open">Open closed-shadow popover</button>
+<button id="closed-popover-close">Close closed-shadow popover</button>
+</section>
+
+<section id="s5" data-expect="suspended" data-scene="late-shadow"><span class="case-id">s5</span> <strong>Late open shadow root</strong>
+<p>Open shadow root attached after initial discovery walk. Opening a modal inside must be detected via root instrumentation and suspend rails.</p>
+<div id="late-open-host"></div>
+<button id="late-open-attach">Attach late open root &amp; open modal</button>
+<button id="late-open-close">Close late open modal</button>
+</section>
+
+<section id="s6" data-expect="suspended" data-scene="late-shadow"><span class="case-id">s6</span> <strong>Late closed shadow root</strong>
+<p>Closed shadow root attached after initial discovery walk. Wrapped attachShadow registers the root. Opening a modal inside must suspend rails.</p>
+<div id="late-closed-host"></div>
+<button id="late-closed-attach">Attach late closed root &amp; open modal</button>
+<button id="late-closed-close">Close late closed modal</button>
+</section>
+
+<section id="s7" data-expect="suspended" data-scene="nested-shadow"><span class="case-id">s7</span> <strong>Nested shadow roots</strong>
+<p>Closed shadow root nested inside an outer open or closed shadow root. Verifies multi-level traversal and root-local listeners.</p>
+<div id="nested-outer-host"></div>
+<button id="nested-modal-open">Open modal in nested shadow root</button>
+<button id="nested-modal-close">Close modal in nested shadow root</button>
+</section>
+
+<section id="s8" data-expect="absent" data-scene="dsd dsd-parser"><span class="case-id">s8</span> <strong>Declarative shadow DOM (DSD) fail-closed</strong>
+<p>In dsd-parser, a parser-created closed root must keep all custom rails absent. In dsd, invoking a DSD parsing API permanently suspends rails. Reload between these scenes; absence after the trigger is the required observation.</p>
+<div id="dsd-host"></div>
+<button id="dsd-trigger">Invoke DSD parsing API</button>
+<output id="dsd-status">NOT_TRIGGERED</output>
+</section>
+
+<section id="s9" data-expect="absent" data-scene="budget"><span class="case-id">s9</span> <strong>Shadow root budget exceeded (&gt;256 roots)</strong>
+<p>Attaching more than 256 author shadow roots exceeds the safety budget (ROOT_BUDGET_EXCEEDED). Document permanently latches fail-closed.</p>
+<button id="budget-trigger">Create 260 shadow roots</button>
+<div id="budget-container"></div>
+<output id="budget-status">NOT_TRIGGERED</output>
+</section>
+
+<section id="s10" data-expect="visible" data-scene="recovery control"><span class="case-id">s10</span> <strong>Visible root rails recovery</strong>
+<p>After closing any modal or popover (cases s3, s4, s5, s6, s7), Browser UX custom rails must recover visibility and full drag/track/wheel interactivity.</p>
+<div class="box" id="box-s10"><div class="tall">Recovery verification scroller s10</div></div>
+</section>
+
+<section id="s11" data-expect="visible" data-scene="root-after"><span class="case-id">s11</span> <strong>Root ::after max-z cover (retained)</strong>
+<p>Custom rail must escape trailing ::after pseudo-element cover at maximum z-index.</p>
+</section>
+
+<section id="s12" data-expect="visible" data-scene="root-mask"><span class="case-id">s12</span> <strong>Root mask strip (retained)</strong>
+<p>Custom rail in top layer escapes root mask paint-path suppression.</p>
+</section>
+
+<section id="s13" data-expect="visible" data-scene="root-clip"><span class="case-id">s13</span> <strong>Root clip-path strip (retained)</strong>
+<p>Custom rail in top layer escapes root clip-path suppression.</p>
+</section>
+
+<section id="s14" data-expect="visible" data-scene="multi-routing"><span class="case-id">s14</span> <strong>Multiple simultaneous scrollers (retained)</strong>
+<div class="row"><div class="box"><div class="tall">Independent A</div></div><div class="box"><div class="tall">Independent B</div></div><div class="box"><div class="tall">Independent C</div></div></div>
+</section>
+
+<section id="s15" data-expect="visible" data-scene="overlap"><span class="case-id">s15</span> <strong>Overlapping parent and child strips (retained)</strong>
+<div class="box fixed-parent" id="overlap-parent"><div class="tall">Parent</div><div class="box fixed-child" id="overlap-child"><div class="tall">Child</div></div></div>
+</section>
+
+<section id="s16" data-expect="visible" data-scene="siblings"><span class="case-id">s16</span> <strong>Covered sibling drawer routing (retained)</strong>
+<div style="position:relative;width:310px;height:200px"><div class="box" id="main-sibling"><div class="tall">Main</div></div><div class="box drawer" id="drawer" hidden><div class="tall">Drawer</div></div></div>
+<button id="drawer-toggle">Toggle drawer</button>
+</section>
+
+<section id="s17" data-expect="record" data-scene="gate"><span class="case-id">s17</span> <strong>Per-engine early closed root branch evaluation</strong>
+<p>Record whether the early inline closed root was captured (CAPTURED), suspended safely (NOT_CAPTURED_FAIL_CLOSED), or failed open (FAIL). Passes only on CAPTURED; NOT_CAPTURED_FAIL_CLOSED records a manager limit hold.</p>
+<label>Chrome <select class="early-closed-branch"><option>NOT_RUN</option><option>CAPTURED</option><option>NOT_CAPTURED_FAIL_CLOSED</option><option>FAIL</option></select></label>
+<label>Firefox <select class="early-closed-branch"><option>NOT_RUN</option><option>CAPTURED</option><option>NOT_CAPTURED_FAIL_CLOSED</option><option>FAIL</option></select></label>
+</section>
+
+<section id="s18" data-expect="visible" data-scene="changing-content"><span class="case-id">s18</span> <strong>Continuously changing content</strong>
+<p>The counter inserts and removes a small span every 100 ms. Drag the custom root rail continuously for at least five seconds; it must remain visible and keep scrolling. Then open and close the early closed-root modal and popover: rails must disappear while open and return after dismissal.</p>
+<output id="changing-counter">0</output>
+<button onclick="window.__openEarlyClosedDialog()">Open early closed modal</button>
+<button onclick="window.__closeEarlyClosedDialog()">Close early closed modal</button>
+<button onclick="window.__openEarlyClosedPopover()">Open early closed popover</button>
+<button onclick="window.__closeEarlyClosedPopover()">Close early closed popover</button>
+</section>
+
+<section id="s19" data-expect="visible" data-scene="throttle-recovery"><span class="case-id">s19</span> <strong>Coverage throttle and structural recovery</strong>
+<p>Validates work budget suspension and structural backoff recovery for R7 coverage recovery:</p>
+<ul>
+<li><strong>600-element batch insertion:</strong> A single-batch mutation of 600 elements exceeds the 512-record/node callback budget. Custom rails must suspend immediately, then return after cooldown without further mutation.</li>
+<li><strong>Structural &gt;60000-node subtree:</strong> A subtree exceeding the 60,000-node safety walk limit suspends rails for at least 10s until shrunk. Structural backoff starts at 1s and doubles up to 30s (1s, 2s, 4s, 8s, 16s, 30s); there is no automatic retry while the document remains quiet.</li>
+</ul>
+<div class="row">
+<button id="batch-600-trigger">Insert 600 elements (one batch)</button>
+<button id="batch-600-clear">Clear 600 elements</button>
+<output id="batch-600-status">IDLE</output>
+</div>
+<div id="batch-600-container"></div>
+<div class="row">
+<button id="structural-60000-trigger">Insert &gt;60000-node subtree (60500 nodes)</button>
+<button id="structural-60000-shrink">Shrink subtree to 10 nodes</button>
+<output id="structural-60000-status">IDLE</output>
+</div>
+<div id="structural-60000-container"></div>
+<div class="box" id="box-s19"><div class="tall">Throttle recovery verification scroller s19</div></div>
+<section id="s20" data-expect="visible" data-scene="detached-root"><span class="case-id">s20</span> <strong>Detached closed root reattachment &amp; foreign realm</strong>
+<p>Validates captured closed popover inside retained closed root detachment, mutation and reattachment, and foreign realm attempt for R8:</p>
+<ul>
+<li><strong>Captured closed popover inside retained closed root:</strong> An author closed shadow root contains a closed-root popover. Detaching the host from the document retains the root in JavaScript. Mutate the detached root and reattach it to the document. Opening the closed popover must suspend all extension rails; closing it must recover visible root rails cleanly.</li>
+<li><strong>Record-only foreign-realm attempt:</strong> Attaching or interacting with a shadow root across a foreign realm (e.g. from an iframe document) does not make a capture claim and fails closed safely.</li>
+</ul>
+<div id="detached-root-container"></div>
+<div class="row">
+<button id="detached-host-detach">Detach host</button>
+<button id="detached-host-mutate">Mutate detached root</button>
+<button id="detached-host-reattach">Reattach host</button>
+<output id="detached-host-status">ATTACHED_INITIAL</output>
+</div>
+<div class="row">
+<button id="detached-popover-open">Open popover in reattached root</button>
+<button id="detached-popover-close">Close popover in reattached root</button>
+<output id="detached-popover-status">CLOSED</output>
+</div>
+<div class="row">
+<button id="foreign-realm-trigger">Attempt foreign-realm attachShadow (record-only)</button>
+<output id="foreign-realm-status">IDLE</output>
+</div>
+<iframe id="foreign-realm-frame" style="display:none"></iframe>
+<div class="box" id="box-s20"><div class="tall">Detached root reattach verification scroller s20</div></div>
+</section>
+
+<div id="root-spacer" style="height:180vh">Root scrolling content for R8 detached root reattach matrix</div>
+
+<script>
+(function () {
+  "use strict";
+  const allowed = [
+    'control', 'early-closed', 'closed-modal', 'closed-popover', 'late-shadow',
+    'nested-shadow', 'dsd', 'dsd-parser', 'budget', 'recovery', 'root-after', 'root-mask',
+    'root-clip', 'multi-routing', 'overlap', 'siblings', 'gate', 'changing-content',
+    'throttle-recovery', 'detached-root'
+  ];
+  const requested = new URLSearchParams(location.search).get('scene') || 'control';
+  const scene = allowed.includes(requested) ? requested : 'control';
+  document.documentElement.dataset.scene = scene;
+  const menu = document.getElementById('scene');
+  for (const name of allowed) {
+    const option = document.createElement('option');
+    option.value = name;
+    option.textContent = name;
+    menu.appendChild(option);
+  }
+  menu.value = scene;
+  menu.addEventListener('change', () => {
+    location.search = '?scene=' + encodeURIComponent(menu.value);
+  });
+
+  for (const section of document.querySelectorAll('section[data-scene]')) {
+    section.hidden = !section.dataset.scene.split(' ').includes(scene);
+  }
+  if (scene === 'changing-content') {
+    let ticks = 0;
+    const counter = document.getElementById('changing-counter');
+    setInterval(() => {
+      const span = document.createElement('span');
+      span.textContent = String(++ticks);
+      counter.replaceChildren(span);
+    }, 100);
+  }
+
+  // Early closed modal buttons
+  document.getElementById('early-modal-open').addEventListener('click', () => {
+    if (window.__openEarlyClosedDialog) window.__openEarlyClosedDialog();
+  });
+  document.getElementById('early-modal-close').addEventListener('click', () => {
+    if (window.__closeEarlyClosedDialog) window.__closeEarlyClosedDialog();
+  });
+
+  // Closed shadow modal & popover setup
+  const closedHost = document.getElementById('closed-shadow-host');
+  const closedRoot = closedHost.attachShadow({mode: 'closed'});
+  const closedModal = document.createElement('dialog');
+  closedModal.textContent = 'Closed shadow modal dialog. All rails must suspend.';
+  const closedModalCloseBtn = document.createElement('button');
+  closedModalCloseBtn.textContent = 'Close';
+  closedModalCloseBtn.addEventListener('click', () => closedModal.close());
+  closedModal.appendChild(closedModalCloseBtn);
+  closedRoot.appendChild(closedModal);
+
+  const closedPopover = document.createElement('div');
+  closedPopover.setAttribute('popover', 'auto');
+  closedPopover.textContent = 'Closed shadow popover. All rails must suspend.';
+  const closedPopoverCloseBtn = document.createElement('button');
+  closedPopoverCloseBtn.textContent = 'Close';
+  closedPopoverCloseBtn.addEventListener('click', () => closedPopover.hidePopover());
+  closedPopover.appendChild(closedPopoverCloseBtn);
+  closedRoot.appendChild(closedPopover);
+
+  document.getElementById('closed-modal-open').addEventListener('click', () => closedModal.showModal());
+  document.getElementById('closed-modal-close').addEventListener('click', () => closedModal.close());
+  document.getElementById('closed-popover-open').addEventListener('click', () => closedPopover.showPopover());
+  document.getElementById('closed-popover-close').addEventListener('click', () => closedPopover.hidePopover());
+
+  // Late open root
+  let lateOpenDialog = null;
+  document.getElementById('late-open-attach').addEventListener('click', () => {
+    if (!lateOpenDialog) {
+      const host = document.getElementById('late-open-host');
+      const root = host.attachShadow({mode: 'open'});
+      lateOpenDialog = document.createElement('dialog');
+      lateOpenDialog.textContent = 'Late open-shadow modal dialog.';
+      const btn = document.createElement('button');
+      btn.textContent = 'Close';
+      btn.addEventListener('click', () => lateOpenDialog.close());
+      lateOpenDialog.appendChild(btn);
+      root.appendChild(lateOpenDialog);
+    }
+    lateOpenDialog.showModal();
+  });
+  document.getElementById('late-open-close').addEventListener('click', () => {
+    if (lateOpenDialog) lateOpenDialog.close();
+  });
+
+  // Late closed root
+  let lateClosedDialog = null;
+  document.getElementById('late-closed-attach').addEventListener('click', () => {
+    if (!lateClosedDialog) {
+      const host = document.getElementById('late-closed-host');
+      const root = host.attachShadow({mode: 'closed'});
+      lateClosedDialog = document.createElement('dialog');
+      lateClosedDialog.textContent = 'Late closed-shadow modal dialog.';
+      const btn = document.createElement('button');
+      btn.textContent = 'Close';
+      btn.addEventListener('click', () => lateClosedDialog.close());
+      lateClosedDialog.appendChild(btn);
+      root.appendChild(lateClosedDialog);
+    }
+    lateClosedDialog.showModal();
+  });
+  document.getElementById('late-closed-close').addEventListener('click', () => {
+    if (lateClosedDialog) lateClosedDialog.close();
+  });
+
+  // Nested shadow root
+  const outerHost = document.getElementById('nested-outer-host');
+  const outerRoot = outerHost.attachShadow({mode: 'open'});
+  const innerHost = document.createElement('div');
+  const innerRoot = innerHost.attachShadow({mode: 'closed'});
+  const nestedModal = document.createElement('dialog');
+  nestedModal.textContent = 'Nested closed-shadow modal dialog.';
+  const nestedCloseBtn = document.createElement('button');
+  nestedCloseBtn.textContent = 'Close';
+  nestedCloseBtn.addEventListener('click', () => nestedModal.close());
+  nestedModal.appendChild(nestedCloseBtn);
+  innerRoot.appendChild(nestedModal);
+  outerRoot.appendChild(innerHost);
+
+  document.getElementById('nested-modal-open').addEventListener('click', () => nestedModal.showModal());
+  document.getElementById('nested-modal-close').addEventListener('click', () => nestedModal.close());
+
+  // DSD fail closed trigger
+  document.getElementById('dsd-trigger').addEventListener('click', () => {
+    const host = document.getElementById('dsd-host');
+    if (typeof host.setHTMLUnsafe === 'function') {
+      host.setHTMLUnsafe('<template shadowrootmode="closed"><div>DSD Content</div></template>');
+      document.getElementById('dsd-status').textContent = 'DSD_INVOKED via setHTMLUnsafe';
+    } else {
+      host.innerHTML = '<template shadowrootmode="closed"><div>DSD Content</div></template>';
+      document.getElementById('dsd-status').textContent = 'DSD_INVOKED via template HTML';
+    }
+  });
+
+  // Budget trigger (>256 roots)
+  let budgetTriggered = false;
+  document.getElementById('budget-trigger').addEventListener('click', () => {
+    if (budgetTriggered) return;
+    budgetTriggered = true;
+    const container = document.getElementById('budget-container');
+    for (let i = 0; i < 260; i++) {
+      const h = document.createElement('div');
+      h.attachShadow({mode: 'closed'});
+      container.appendChild(h);
+    }
+    document.getElementById('budget-status').textContent = '260_ROOTS_CREATED; ROOT_BUDGET_EXCEEDED latched';
+  });
+
+  // Throttle recovery scene (s19)
+  const batchContainer = document.getElementById('batch-600-container');
+  const batchStatus = document.getElementById('batch-600-status');
+  document.getElementById('batch-600-trigger').addEventListener('click', () => {
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < 600; i++) {
+      const span = document.createElement('span');
+      span.textContent = 'batch-' + i + ' ';
+      frag.appendChild(span);
+    }
+    batchContainer.replaceChildren(frag);
+    // Action receipt only. No timer changes the DOM or asserts extension state:
+    // the operator observes suspension and recovery without another mutation.
+    batchStatus.textContent = '600_ELEMENTS_INSERTED; observe custom rails through cooldown; no scheduled DOM updates';
+  });
+  document.getElementById('batch-600-clear').addEventListener('click', () => {
+    batchContainer.replaceChildren();
+    batchStatus.textContent = 'CLEARED';
+  });
+
+  const structuralContainer = document.getElementById('structural-60000-container');
+  const structuralStatus = document.getElementById('structural-60000-status');
+  let structuralStartTime = 0;
+  document.getElementById('structural-60000-trigger').addEventListener('click', () => {
+    structuralStartTime = performance.now();
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < 60500; i++) {
+      const span = document.createElement('span');
+      frag.appendChild(span);
+    }
+    structuralContainer.replaceChildren(frag);
+    structuralStatus.textContent = '60500_ELEMENTS_INSERTED; observe suspension for at least 10s; no scheduled DOM updates';
+  });
+  document.getElementById('structural-60000-shrink').addEventListener('click', () => {
+    const elapsed = Math.round((performance.now() - structuralStartTime) / 1000);
+    structuralContainer.replaceChildren();
+    for (let i = 0; i < 10; i++) {
+      const span = document.createElement('span');
+      span.textContent = 'shrunk ';
+      structuralContainer.appendChild(span);
+    }
+    structuralStatus.textContent = 'SUBTREE_SHRUNK (elapsed ' + elapsed + 's; requires >=10s observed suspension); observe bounded recovery';
+  });
+
+  // Detached closed root reattach scene (s20)
+  const detachedContainer = document.getElementById('detached-root-container');
+  const detachedHost = document.createElement('div');
+  detachedHost.id = 'detached-root-host';
+  const detachedRoot = detachedHost.attachShadow({mode: 'closed'});
+  const detachedPopover = document.createElement('div');
+  detachedPopover.id = 'detached-closed-popover';
+  detachedPopover.setAttribute('popover', 'auto');
+  detachedPopover.textContent = 'Detached root closed popover. All rails must suspend.';
+  const detachedPopCloseBtn = document.createElement('button');
+  detachedPopCloseBtn.textContent = 'Close';
+  detachedPopCloseBtn.addEventListener('click', () => {
+    detachedPopover.hidePopover();
+    document.getElementById('detached-popover-status').textContent = 'CLOSED';
+  });
+  detachedPopover.appendChild(detachedPopCloseBtn);
+  detachedRoot.appendChild(detachedPopover);
+  detachedContainer.appendChild(detachedHost);
+
+  const detachedStatus = document.getElementById('detached-host-status');
+  document.getElementById('detached-host-detach').addEventListener('click', () => {
+    detachedHost.remove();
+    detachedStatus.textContent = 'DETACHED (retained in JS)';
+  });
+  document.getElementById('detached-host-mutate').addEventListener('click', () => {
+    const item = document.createElement('p');
+    item.textContent = 'Mutated content inside detached closed root at ' + new Date().toISOString();
+    detachedRoot.appendChild(item);
+    detachedStatus.textContent = 'MUTATED_WHILE_DETACHED';
+  });
+  document.getElementById('detached-host-reattach').addEventListener('click', () => {
+    detachedContainer.appendChild(detachedHost);
+    detachedStatus.textContent = 'REATTACHED';
+  });
+
+  document.getElementById('detached-popover-open').addEventListener('click', () => {
+    try {
+      detachedPopover.showPopover();
+      document.getElementById('detached-popover-status').textContent = 'OPEN (rails must suspend)';
+    } catch (e) {
+      document.getElementById('detached-popover-status').textContent = 'ERROR: ' + e.message;
+    }
+  });
+  document.getElementById('detached-popover-close').addEventListener('click', () => {
+    try {
+      detachedPopover.hidePopover();
+      document.getElementById('detached-popover-status').textContent = 'CLOSED (rails must recover)';
+    } catch (e) {
+      document.getElementById('detached-popover-status').textContent = 'ERROR: ' + e.message;
+    }
+  });
+
+  // Foreign-realm record-only attempt
+  document.getElementById('foreign-realm-trigger').addEventListener('click', () => {
+    const frame = document.getElementById('foreign-realm-frame');
+    const fStatus = document.getElementById('foreign-realm-status');
+    try {
+      const doc = frame.contentDocument || frame.contentWindow.document;
+      const foreignDiv = doc.createElement('div');
+      doc.body.appendChild(foreignDiv);
+      const foreignRoot = foreignDiv.attachShadow({mode: 'closed'});
+      fStatus.textContent = 'FOREIGN_REALM_ATTEMPTED: attachShadow executed in foreign realm; record-only (no capture claim)';
+    } catch (e) {
+      fStatus.textContent = 'FOREIGN_REALM_REFUSED: ' + e.message + ' (record-only, no capture claim)';
+    }
+  });
+
+  // Retained drawer toggle
+  document.getElementById('drawer-toggle').addEventListener('click', () => {
+    const el = document.getElementById('drawer');
+    el.hidden = !el.hidden;
+  });
+
+  // Snapshot only fixture nodes
+  const owned = () => [...document.querySelectorAll('*')].filter((el) => el.localName !== 'browser-ux-scrollbar-shell');
+  function snapshot() {
+    return JSON.stringify(owned().map((el) => {
+      const cs = getComputedStyle(el);
+      return {
+        connected: el.isConnected,
+        tag: el.localName,
+        attrs: [...el.attributes].map((a) => [a.name, a.value]),
+        overflow: [cs.overflowX, cs.overflowY]
+      };
+    }));
+  }
+  let baseline;
+  document.getElementById('baseline').addEventListener('click', () => {
+    baseline = snapshot();
+    document.getElementById('layout-status').textContent = 'BASELINE_RECORDED';
+  });
+  document.getElementById('compare').addEventListener('click', () => {
+    document.getElementById('layout-status').textContent = snapshot() === baseline ? 'SAME' : 'CHANGED';
+  });
+
+  document.addEventListener('DOMContentLoaded', () => {
+    baseline = snapshot();
+  });
+})();
+</script>
+</body></html>

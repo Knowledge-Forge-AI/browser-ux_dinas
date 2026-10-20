@@ -1,0 +1,142 @@
+<!doctype html>
+<!-- BUX5C0 attended GUI scrollbar matrix (R1). Serve from a loopback HTTP server bound to
+     127.0.0.1; case 7 uses the other loopback host name as a cross-origin frame. Makes no
+     non-loopback request. data-expect: visible = a scrollbar must be visibly available;
+     absent = no scrollbar and no new scrolling; related = a visible scrollbar is claimed for a
+     related (about:/data:/blob:/sandboxed) frame whose injection path is upstream-unverified in at
+     least one browser, judged separately; record = observe and journal only. -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Browser UX scrollbar matrix</title>
+<style>
+  body { font: 14px system-ui, sans-serif; margin: 1rem; }
+  .case { margin: 0 0 1rem; }
+  .box { width: 240px; height: 80px; border: 1px solid #888; }
+  .tall { height: 400px; background: linear-gradient(#ddd, #555); }
+  .scroll { overflow: auto; }
+  output { display: block; font-family: ui-monospace, monospace; }
+  /* 1 */ #c1 .box { scrollbar-width: none; }
+  /* 2 */ #c2 .box { scrollbar-width: none !important; }
+  @layer site { /* 3 */ #c3 .box { scrollbar-width: none !important; } }
+  /* 9 */ #c9 .box { overflow: hidden; }
+  /* 11 */ #c11 .box::-webkit-scrollbar { display: none; }
+  /* 12 */ #c12 .box::-webkit-scrollbar { width: 0; height: 0; }
+  /* 13 */ #c13 .box { scrollbar-color: transparent transparent; }
+  /* 15 */ #c15 .box { scrollbar-width: thin; }
+  /* 16 */ #c16 .box { scrollbar-width: none; }
+  /* 16 */ #c16 .box::-webkit-scrollbar { display: none; }
+  /* 17 */ #c17 .box::-webkit-scrollbar { background: transparent; }
+  /* 17 */ #c17 .box::-webkit-scrollbar-thumb { background: transparent; }
+  /* 17 */ #c17 .box::-webkit-scrollbar-track { background: transparent; }
+  /* 18 */ #c18 .inner { height: 60px; margin: 4px; scrollbar-width: none; }
+  /* 18 */ #c18 .inner::-webkit-scrollbar { display: none; }
+  /* 23 */ #c23 .box { scrollbar-color: transparent transparent; }
+  /* 23 */ #c23 .box::-webkit-scrollbar-thumb { background: transparent; }
+  /* 23 */ #c23 .box::-webkit-scrollbar-track { background: transparent; }
+  /* 24 */ #c24 .box { overflow: visible; }
+  /* 25 */ #c25 .clip { width: 240px; height: 80px; overflow: hidden; }
+  /* 25 */ #c25 .box { width: 270px; height: 80px; }
+  /* 26 */ #c26 .box { color-scheme: dark; background: Canvas; color: CanvasText; }
+  /* 27 */ #c27 .box { background: #111; color: #eee; }
+  /* 27 */ #c27 .tall { background: linear-gradient(#333, #000); }
+</style>
+<!-- 5: root hiding applies to the document scroller itself. -->
+<style>html { scrollbar-width: none; scrollbar-color: transparent transparent; }
+  html::-webkit-scrollbar { display: none; }</style>
+</head>
+<body>
+<h1>Scrollbar matrix (observe; nothing here is a pass by itself)</h1>
+<p>Each case reports computed <code>overflow</code>, <code>scrollbar-width</code>,
+<code>scrollbar-color</code> and <code>offsetWidth - clientWidth</code>; root and frame
+documents report <code>innerWidth - clientWidth</code> of the root element instead (0 usually
+means no space-taking scrollbar; macOS overlay scrollbars also report 0, so record the macOS
+"Show scroll bars" mode first). The visual observation decides; the number only supports it.</p>
+<p class="case" id="c5" data-expect="visible">Case 5: the page itself is taller than the window; its root scrollbar must be visible despite root hiding.<output></output></p>
+<div class="case" id="c1" data-expect="visible">1 author scrollbar-width:none<div class="box scroll"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c2" data-expect="visible">2 author !important<div class="box scroll"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c3" data-expect="visible">3 @layer !important<div class="box scroll"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c4" data-expect="visible">4 inline !important<div class="box scroll" style="scrollbar-width: none !important"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c6" data-expect="visible">6 same-origin iframe with root hiding<iframe class="box" data-frame="same"></iframe><output></output></div>
+<div class="case" id="c7" data-expect="visible">7 cross-origin iframe (other loopback host) with root hiding<iframe class="box" data-frame="cross"></iframe></div>
+<div class="case" id="c8" data-expect="related">8 srcdoc iframe with root hiding<iframe class="box" data-frame="srcdoc"></iframe><output></output></div>
+<div class="case" id="c9" data-expect="absent">9 overflow:hidden with overflowing content: no scrollbar, overflow still hidden<div class="box"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c10" data-expect="absent">10 overflow:auto without overflow: no scrollbar<div class="box scroll"><div style="height:10px"></div></div><output></output></div>
+<div class="case" id="c11" data-expect="visible">11 ::-webkit-scrollbar{display:none}<div class="box scroll"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c12" data-expect="visible">12 ::-webkit-scrollbar{width:0;height:0}<div class="box scroll"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c13" data-expect="visible">13 scrollbar-color: transparent transparent<div class="box scroll"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c14" data-expect="record">14 scroller inside open shadow root with scrollbar-width:none<div class="host"></div><output></output></div>
+<div class="case" id="c15" data-expect="visible">15 author thin: normalized to normal width<div class="box scroll"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c16" data-expect="visible">16 scrollbar-width:none plus ::-webkit-scrollbar{display:none}<div class="box scroll"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c17" data-expect="visible">17 WebKit transparent scrollbar, thumb and track<div class="box scroll"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c18" data-expect="visible">18 nested scroll boxes; the inner one hides (standard plus WebKit); both bars visible<div class="box scroll"><div class="inner scroll"><div class="tall"></div></div><div class="tall"></div></div><output></output></div>
+<div class="case" id="c19" data-expect="related">19 script-populated about:blank iframe with root hiding<iframe class="box" data-frame="blank"></iframe><output></output></div>
+<div class="case" id="c20" data-expect="related">20 sandboxed srcdoc iframe (opaque origin) with root hiding<iframe class="box" data-frame="sandboxed" sandbox="allow-scripts"></iframe></div>
+<div class="case" id="c21" data-expect="related">21 data: iframe with root hiding<iframe class="box" data-frame="data"></iframe></div>
+<div class="case" id="c22" data-expect="related">22 blob: iframe with root hiding<iframe class="box" data-frame="blob"></iframe></div>
+<div class="case" id="c23" data-expect="visible">23 standard transparent color plus WebKit transparent thumb and track<div class="box scroll"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c24" data-expect="absent">24 overflow:visible box with tall content: stays non-scrollable, no scrollbar<div class="box"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c25" data-expect="record">25 scroller whose bar is clipped off by an overflow:hidden parent (documented limit)<div class="clip"><div class="box scroll"><div class="tall"></div></div></div><output></output></div>
+<div class="case" id="c26" data-expect="visible">26 color-scheme:dark scroller: bar visible and distinguishable<div class="box scroll"><div class="tall"></div></div><output></output></div>
+<div class="case" id="c27" data-expect="visible">27 dark background without color-scheme: bar visible; note the light track stripe for manager review<div class="box scroll"><div class="tall"></div></div><output></output></div>
+<div style="height:150vh"></div>
+<script>
+  "use strict";
+  // Frame documents hide their own root scrollbar and report it themselves.
+  const FRAME_STYLE = "<style>html{scrollbar-width:none;scrollbar-color:transparent transparent}" +
+    "html::-webkit-scrollbar{display:none}body{margin:0}</style>";
+  const ROOT_REPORT = "const e=document.documentElement,s=getComputedStyle(e);" +
+    "document.querySelector('output').textContent='root scrollbar-width='+s.scrollbarWidth+" +
+    "' scrollbar-color='+s.scrollbarColor+' bar='+(innerWidth-e.clientWidth)+'px';";
+  const frameDoc = (label) => `<!doctype html>${FRAME_STYLE}<div style="height:400px">${label}</div>` +
+    `<output></output><script>addEventListener("load",()=>{${ROOT_REPORT}})<\/script>`;
+  const report = (box, out) => {
+    const s = getComputedStyle(box);
+    out.textContent = `overflow=${s.overflow} scrollbar-width=${s.scrollbarWidth} ` +
+      `scrollbar-color=${s.scrollbarColor} bar=${box.offsetWidth - box.clientWidth}px`;
+  };
+  // The root scroller's scrollbar is outside offsetWidth, so measure it against the viewport.
+  const reportRoot = (win, out) => {
+    const el = win.document.documentElement;
+    const s = win.getComputedStyle(el);
+    out.textContent = `root scrollbar-width=${s.scrollbarWidth} scrollbar-color=${s.scrollbarColor} ` +
+      `bar=${win.innerWidth - el.clientWidth}px`;
+  };
+  if (new URLSearchParams(location.search).has("frame")) {
+    document.body.innerHTML = '<div style="height:400px">frame document; root hides its scrollbar</div><output></output>';
+    addEventListener("load", () => reportRoot(window, document.querySelector("output")));
+  } else {
+    const host = document.querySelector("#c14 .host");
+    const shadow = host.attachShadow({ mode: "open" });
+    shadow.innerHTML = '<style>.box{width:240px;height:80px;overflow:auto;scrollbar-width:none}</style>' +
+      '<div class="box"><div style="height:400px"></div></div>';
+    const other = location.hostname === "localhost" ? "127.0.0.1" : "localhost";
+    for (const frame of document.querySelectorAll("iframe[data-frame]")) {
+      const kind = frame.dataset.frame;
+      if (kind === "same") frame.src = `${location.pathname}?frame=same`;
+      if (kind === "cross") frame.src = `${location.protocol}//${other}:${location.port}${location.pathname}?frame=cross`;
+      if (kind === "srcdoc") frame.srcdoc = frameDoc("srcdoc");
+      if (kind === "sandboxed") frame.srcdoc = frameDoc("sandboxed srcdoc (opaque origin)");
+      if (kind === "data") frame.src = "data:text/html;charset=utf-8," + encodeURIComponent(frameDoc("data: frame"));
+      if (kind === "blob") frame.src = URL.createObjectURL(new Blob([frameDoc("blob: frame")], { type: "text/html" }));
+      if (kind === "blank") {
+        const doc = frame.contentDocument;
+        doc.head.innerHTML = FRAME_STYLE;
+        doc.body.innerHTML = '<div style="height:400px">about:blank frame</div>';
+      }
+    }
+    addEventListener("load", () => {
+      for (const out of document.querySelectorAll(".case > output")) {
+        const owner = out.parentElement;
+        const frame = owner.querySelector("iframe");
+        const box = owner.querySelector(".inner") || owner.querySelector(".box");
+        if (owner.id === "c14") report(shadow.querySelector(".box"), out);
+        else if (frame) reportRoot(frame.contentWindow, out);
+        else if (box) report(box, out);
+        else reportRoot(window, out);
+      }
+    });
+  }
+</script>
+</body>
+</html>

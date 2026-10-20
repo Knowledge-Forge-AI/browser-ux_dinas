@@ -1,0 +1,177 @@
+{
+  "browsers": {
+    "floorp": {
+      "identityProbe": {
+        "buildVersion": "1226.9.29",
+        "bundleIdentifier": "app.floorp.Floorp",
+        "executablePresent": true,
+        "observation": "INSPECTED",
+        "schema": "browser-ux-app-identity-v1",
+        "signatureArchitecture": "arm64",
+        "signatureDiagnostic": "INVALID_SIGNATURE",
+        "signatureVerified": false,
+        "signatureVerifyExitCode": 1,
+        "signingIdentifier": "app.floorp.Floorp",
+        "teamIdentifier": "DV2U35YBHT",
+        "verdict": "MISMATCH",
+        "version": "12.19.0@157.0"
+      },
+      "nativeManifestReader": {
+        "replacesFloorpWithMozilla": true,
+        "sha256": "9262423af4b18ad221de6fd983e2fe7c92061b95a72456a00719cc6e59c376b3"
+      },
+      "policyEvidence": {
+        "AutofillAddressEnabled": {
+          "kind": "bundled-policy-schema-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "AutofillCreditCardEnabled": {
+          "kind": "bundled-policy-schema-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "Cookies": {
+          "kind": "bundled-policy-schema-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "DNSOverHTTPS": {
+          "kind": "bundled-policy-schema-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "DisableFirefoxStudies": {
+          "kind": "bundled-policy-schema-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "DisableTelemetry": {
+          "kind": "bundled-policy-schema-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "EnableTrackingProtection": {
+          "kind": "bundled-policy-schema-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "ExtensionSettings": {
+          "kind": "bundled-policy-schema-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "HttpsOnlyMode": {
+          "kind": "bundled-policy-schema-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "OfferToSaveLoginsDefault": {
+          "kind": "bundled-policy-schema-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "PasswordManagerEnabled": {
+          "kind": "bundled-policy-schema-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "Preferences": {
+          "kind": "bundled-policy-schema-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        }
+      },
+      "policyModules": {
+        "modules/EnterprisePoliciesParent.sys.mjs": "625ebe7eac439399aac1c2095ba088767c8f7dd7acdee70ab9f36407e793688e",
+        "modules/policies/macOSPoliciesParser.sys.mjs": "cc1681d84c38cfcaaa5b657c2463b38fe3b46752590823474b3c1534b058fe95"
+      },
+      "schemas": [
+        "modules/policies/policies-schema.json",
+        "modules/policies/schema.sys.mjs"
+      ]
+    },
+    "vivaldi": {
+      "identityProbe": {
+        "buildVersion": "8.2.4133.83",
+        "bundleIdentifier": "com.vivaldi.Vivaldi",
+        "executablePresent": true,
+        "observation": "INSPECTED",
+        "schema": "browser-ux-app-identity-v1",
+        "signatureArchitecture": "arm64",
+        "signatureDiagnostic": "INVALID_SIGNATURE",
+        "signatureVerified": false,
+        "signatureVerifyExitCode": 1,
+        "signingIdentifier": "com.vivaldi.Vivaldi",
+        "teamIdentifier": "4XF3XNRN6Y",
+        "verdict": "MISMATCH",
+        "version": "8.2.4133.83"
+      },
+      "policyEvidence": {
+        "AudioCaptureAllowedUrls": {
+          "kind": "binary-string-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "BlockThirdPartyCookies": {
+          "kind": "binary-string-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "DefaultAutomaticDownloadsSetting": {
+          "kind": "binary-string-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "DefaultGeolocationSetting": {
+          "kind": "binary-string-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "DefaultMediaStreamSetting": {
+          "kind": "binary-string-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "DefaultNotificationsSetting": {
+          "kind": "binary-string-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "DnsOverHttpsMode": {
+          "kind": "binary-string-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "ExtensionInstallForcelist": {
+          "kind": "binary-string-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "ExtensionSettings": {
+          "kind": "binary-string-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "HttpsOnlyMode": {
+          "kind": "binary-string-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "PasswordManagerEnabled": {
+          "kind": "binary-string-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        },
+        "VideoCaptureAllowedUrls": {
+          "kind": "binary-string-only",
+          "supportsPolicy": false,
+          "symbolPresent": true
+        }
+      }
+    }
+  },
+  "observedOn": "2026-10-04",
+  "schema": "browser-ux-replacement-static-evidence-v1",
+  "signatureProbeContext": "semantic-dispatch sandbox; SYSTEM1 must repeat outside sandbox before diagnosing installed app integrity"
+}

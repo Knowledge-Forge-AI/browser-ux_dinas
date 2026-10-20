@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Browser UX R5 top-layer attended matrix</title>
+<style>
+:root { color-scheme: light dark; font: 16px system-ui; }
+body { margin: 20px; min-height: 180vh; }
+header, section { border: 1px solid GrayText; padding: 12px; margin: 12px 0; }
+section[hidden] { display: none; }
+.box { position: relative; overflow: auto; width: 300px; height: 180px; border: 2px solid GrayText; margin: 12px 0; }
+.tall { height: 700px; padding: 10px; box-sizing: border-box; background: linear-gradient(Canvas,ButtonFace); }
+.cover { position: absolute; right: 0; bottom: 0; width: 40px; height: 22%; z-index: 2147483647; background: Highlight; }
+.global-cover { position: fixed; bottom: 0; right: 0; height: 20vh; width: 100vw; z-index: 2147483647; background: Highlight; }
+.visual-cover { position: fixed; right: 0; top: 0; width: 32px; height: 100vh; z-index: 2147483647; pointer-events: none; background: Highlight; }
+.sticky { position: sticky; bottom: 0; height: 36px; background: Highlight; z-index: 2147483647; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; }
+.fixed-parent { position: fixed; right: 20px; top: 180px; width: 250px; height: 250px; }
+.fixed-child { position: fixed; right: 20px; top: 260px; width: 250px; height: 130px; }
+.clip { overflow: hidden; width: 80px; height: 50px; }
+.offscreen { position: absolute; left: -9999px; }
+.drawer { position: absolute; top: 0; left: 0; width: 300px; height: 180px; z-index: 100; background: Canvas; }
+html[data-scene="root-after"]::after { content: ""; position: fixed; right: 0; top: 0; width: 32px; height: 100vh; background: Highlight; z-index: 2147483647; }
+html[data-scene="root-mask"] { mask-image: linear-gradient(to right,black calc(100% - 32px),transparent calc(100% - 32px)); }
+html[data-scene="root-clip"] { clip-path: inset(0 32px 0 0); }
+html[data-scene="root-filter"] { filter: invert(1); opacity: .45; mix-blend-mode: difference; }
+html[data-scene="root-opacity"] { opacity: .2; }
+html[data-scene="root-transform"] { transform: translate(10px,5px); }
+html[data-scene="author-attacks"] [popover], html[data-scene="author-attacks"] :popover-open {
+ display: none !important; visibility: hidden !important; opacity: 0 !important;
+ transform: translateX(-10000px) !important; translate: -10000px !important; scale: 0 !important;
+ clip-path: inset(100%) !important; mask-image: linear-gradient(transparent,transparent) !important;
+ filter: blur(100px) !important; pointer-events: auto !important;
+ transition: all 100s !important; animation: hide-host 1s infinite !important;
+}
+html[data-scene="author-attacks"] browser-ux-scrollbar-shell::before,
+html[data-scene="author-attacks"] browser-ux-scrollbar-shell::after {
+ content: "AUTHOR COVER" !important; display: block !important; position: fixed !important;
+ inset: 0 !important; background: Highlight !important; pointer-events: auto !important;
+}
+@keyframes hide-host { from { opacity: 0; } to { opacity: 0; } }
+output { display: block; white-space: pre-wrap; margin: 8px 0; }
+dialog { max-width: 70vw; }
+</style></head><body>
+<header><h1>R5 top-layer attended matrix</h1>
+<p>This fixture creates page conditions only. It never creates a scrollbar host or substitute rail.
+Only actual browser rendering and user interaction can qualify visibility. Reload each selected scene
+with the temporary extension loaded. Native scrollbars must remain underneath.</p>
+<label>Scene <select id="scene"></select></label>
+<p>For every visible case: drag the thumb, click the track and wheel over that narrow strip.
+Wheel outside the strip stays page-owned. Hidden/clip/inert/fully-clipped cases must have no rail.
+Open page modal/popover UI must hide every Browser UX rail; closing must recover after normal reevaluation.</p>
+<button id="baseline">Reset baseline after intentional fixture changes</button>
+<button id="compare">Compare page layout/attributes</button><output id="layout-status">NOT_OBSERVED</output>
+</header>
+<section id="t1" data-expect="visible" data-scene="control"><span class="case-id">t1</span> <strong>Root normal scroller</strong>
+<p>The document is taller than the viewport. Inspect the root track, including its lower portion.</p></section>
+<section id="t2" data-expect="visible" data-scene="control"><span class="case-id">t2</span> <strong>Nested normal scroller</strong>
+<div class="box" id="box-t2" style=""><div class="tall">Page-owned scroller t2</div></div>
+</section>
+<section id="t3" data-expect="visible" data-scene="overlays"><span class="case-id">t3</span> <strong>Fixed bottom 20 percent overlay</strong>
+<div class="box" id="box-t3" style=""><div class="tall">Page-owned scroller t3</div><div class="cover">Cover</div></div>
+</section>
+<section id="t4" data-expect="visible" data-scene="overlays"><span class="case-id">t4</span> <strong>Sticky footer</strong>
+<div class="box" id="box-t4" style=""><div class="tall">Page-owned scroller t4</div><div class="sticky">Sticky footer covering the native track</div></div>
+</section>
+<section id="t5" data-expect="visible" data-scene="overlays"><span class="case-id">t5</span> <strong>Absolute max-z footer</strong>
+<div class="box" id="box-t5" style=""><div class="tall">Page-owned scroller t5</div><div class="cover">Cover</div></div>
+</section>
+<section id="t6" data-expect="visible" data-scene="overlays"><span class="case-id">t6</span> <strong>Right-edge dynamic overlay</strong>
+<div class="box" id="box-t6" style=""><div class="tall">Page-owned scroller t6</div></div>
+<button id="dynamic-overlay">Insert/remove right-edge overlay</button></section>
+<section id="t7" data-expect="visible" data-scene="visual-overlay"><span class="case-id">t7</span> <strong>Visual pointer-events:none overlay</strong>
+<div class="box" id="box-t7" style=""><div class="tall">Page-owned scroller t7</div></div>
+</section>
+<section id="t8" data-expect="visible" data-scene="root-after"><span class="case-id">t8</span> <strong>Root ::after max-z cover</strong>
+</section>
+<section id="t9" data-expect="visible" data-scene="root-mask"><span class="case-id">t9</span> <strong>Root mask strip</strong>
+</section>
+<section id="t10" data-expect="visible" data-scene="root-clip"><span class="case-id">t10</span> <strong>Root clip-path strip</strong>
+</section>
+<section id="t11" data-expect="visible" data-scene="root-filter"><span class="case-id">t11</span> <strong>Root filter and compositing</strong>
+</section>
+<section id="t12" data-expect="visible" data-scene="root-opacity"><span class="case-id">t12</span> <strong>Root opacity</strong>
+</section>
+<section id="t13" data-expect="visible" data-scene="root-transform"><span class="case-id">t13</span> <strong>Transformed root</strong>
+</section>
+<section id="t14" data-expect="visible" data-scene="multi-routing"><span class="case-id">t14</span> <strong>Multiple simultaneous scrollers</strong>
+<div class="row"><div class="box"><div class="tall">Independent 0</div></div><div class="box"><div class="tall">Independent 1</div></div><div class="box"><div class="tall">Independent 2</div></div></div></section>
+<section id="t15" data-expect="visible" data-scene="overlap"><span class="case-id">t15</span> <strong>Overlapping parent and child strips</strong>
+<p>Two fixed scroll containers share a strip. Child input must not scroll its parent.</p><div class="box fixed-parent" id="overlap-parent"><div class="tall">Parent</div><div class="box fixed-child" id="overlap-child"><div class="tall">Child</div></div></div></section>
+<section id="t16" data-expect="visible" data-scene="siblings"><span class="case-id">t16</span> <strong>Covered sibling drawer routing</strong>
+<p>Two sibling scrollers share a strip. With drawer visible, its scrollTop must change while the covered sibling stays still.</p><div style="position:relative;width:310px;height:200px"><div class="box" id="main-sibling"><div class="tall">Main</div></div><div class="box drawer" id="drawer"><div class="tall">Drawer</div></div></div><button id="drawer-toggle">Toggle drawer</button></section>
+<section id="t17" data-expect="suspended" data-scene="toplayer-dialog pre-modal"><span class="case-id">t17</span> <strong>Modal suspension and recovery</strong>
+<button id="modal-open">Open page modal</button><dialog id="modal">Page modal. All extension rails must suspend.<button id="modal-close">Close</button></dialog></section>
+<section id="t18" data-expect="suspended" data-scene="toplayer-popover pre-popover"><span class="case-id">t18</span> <strong>Manual popover suspension and recovery</strong>
+<button data-show="pop-18">Open manual page popover</button><div id="pop-18" popover="manual">Page top layer. Rails suspended while open.<button data-hide="pop-18">Close</button></div></section>
+<section id="t19" data-expect="suspended" data-scene="toplayer-popover pre-auto"><span class="case-id">t19</span> <strong>Auto popover suspension and recovery</strong>
+<button data-show="pop-19">Open auto page popover</button><div id="pop-19" popover="auto">Page top layer. Rails suspended while open.<button data-hide="pop-19">Close</button></div></section>
+<section id="t20" data-expect="suspended" data-scene="toplayer-popover"><span class="case-id">t20</span> <strong>Auto popover stack preservation</strong>
+<button data-show="stack-a">Open outer auto popover</button><div id="stack-a" popover="auto">Outer must stay open when Browser UX suspends.<button data-show="stack-b">Open nested auto</button><div id="stack-b" popover="auto">Nested<button data-hide="stack-b">Close nested</button></div><button data-hide="stack-a">Close outer</button></div></section>
+<section id="t21" data-expect="visible" data-scene="toplayer-popover"><span class="case-id">t21</span> <strong>Outside click and Escape</strong>
+<button data-show="pop-21">Open auto page popover</button><div id="pop-21" popover="auto">Page top layer. Rails suspended while open.<button data-hide="pop-21">Close</button></div><p>Close this auto popover with outside click and Escape. With no page popover open, outside click/Escape must leave Browser UX manual rails available.</p></section>
+<section id="t22" data-expect="suspended" data-scene="toplayer-toast"><span class="case-id">t22</span> <strong>Persistent manual toast</strong>
+<button data-show="pop-22">Open manual page popover</button><div id="pop-22" popover="manual">Page top layer. Rails suspended while open.<button data-hide="pop-22">Close</button></div><p>A persistent manual toast suspends rails page-wide. This is intentional; record availability impact.</p></section>
+<section id="t23" data-expect="suspended" data-scene="fullscreen"><span class="case-id">t23</span> <strong>Element fullscreen</strong>
+<button id="fullscreen">Enter element fullscreen</button><div id="fullscreen-target">Use Escape to exit fullscreen. Rails must suspend.</div></section>
+<section id="t24" data-expect="suspended" data-scene="shadow-modal"><span class="case-id">t24</span> <strong>Open-shadow modal</strong>
+<div id="shadow-24"></div><button id="shadow-open-24">Open open-shadow modal</button></section>
+<section id="t25" data-expect="record" data-scene="shadow-modal"><span class="case-id">t25</span> <strong>Closed-shadow modal limitation</strong>
+<div id="shadow-25"></div><button id="shadow-open-25">Open closed-shadow modal</button></section>
+<section id="t26" data-expect="visible" data-scene="author-attacks"><span class="case-id">t26</span> <strong>Host display visibility opacity attack</strong>
+<div class="box" id="box-t26" style=""><div class="tall">Page-owned scroller t26</div></div>
+</section>
+<section id="t27" data-expect="visible" data-scene="author-attacks"><span class="case-id">t27</span> <strong>Host transform clip mask filter attack</strong>
+<div class="box" id="box-t27" style=""><div class="tall">Page-owned scroller t27</div></div>
+</section>
+<section id="t28" data-expect="visible" data-scene="author-attacks"><span class="case-id">t28</span> <strong>Host pointer-events attack</strong>
+<div class="box" id="box-t28" style=""><div class="tall">Page-owned scroller t28</div></div>
+</section>
+<section id="t29" data-expect="visible" data-scene="author-attacks"><span class="case-id">t29</span> <strong>Host motion attack</strong>
+<div class="box" id="box-t29" style=""><div class="tall">Page-owned scroller t29</div></div>
+</section>
+<section id="t30" data-expect="visible" data-scene="author-attacks"><span class="case-id">t30</span> <strong>Host generated content attack</strong>
+<div class="box" id="box-t30" style=""><div class="tall">Page-owned scroller t30</div></div>
+</section>
+<section id="t31" data-expect="absent" data-scene="inert-clipped"><span class="case-id">t31</span> <strong>Overflow hidden</strong>
+<div class="box" id="box-t31" style="overflow:hidden"><div class="tall">Page-owned scroller t31</div></div>
+</section>
+<section id="t32" data-expect="absent" data-scene="inert-clipped"><span class="case-id">t32</span> <strong>Overflow clip</strong>
+<div class="box" id="box-t32" style="overflow:clip"><div class="tall">Page-owned scroller t32</div></div>
+</section>
+<section id="t33" data-expect="absent" data-scene="inert-clipped"><span class="case-id">t33</span> <strong>No overflowing content</strong>
+<div class="box" id="box-t33" style=""><div class="tall" style="height:30px">Page-owned scroller t33</div></div>
+</section>
+<section id="t34" data-expect="absent" data-scene="inert-clipped"><span class="case-id">t34</span> <strong>Inert scroller</strong>
+<div class="box" id="box-t34" inert style=""><div class="tall">Page-owned scroller t34</div></div>
+</section>
+<section id="t35" data-expect="absent" data-scene="inert-clipped"><span class="case-id">t35</span> <strong>Slotted inert subtree</strong>
+<div id="slot-host"><div class="box" slot="content"><div class="tall">Slotted inert scroller</div></div></div></section>
+<section id="t36" data-expect="absent" data-scene="inert-clipped"><span class="case-id">t36</span> <strong>Offscreen scroller</strong>
+<div class="box" id="box-t36" style="position:absolute;left:-9999px"><div class="tall">Page-owned scroller t36</div></div>
+</section>
+<section id="t37" data-expect="absent" data-scene="inert-clipped"><span class="case-id">t37</span> <strong>Fully layout-clipped scroller</strong>
+<div class="clip"><div class="box" style="margin-left:100px"><div class="tall">Fully clipped</div></div></div></section>
+<section id="t38" data-expect="visible" data-scene="geometry"><span class="case-id">t38</span> <strong>Fixed panel escapes ancestor overflow</strong>
+<div class="clip"><div class="box" style="position:fixed;left:30px;top:340px"><div class="tall">Fixed escape panel</div></div></div></section>
+<section id="t39" data-expect="record" data-scene="geometry"><span class="case-id">t39</span> <strong>Rotated nested geometry refused</strong>
+<div class="box" id="box-t39" style="transform:rotate(180deg)"><div class="tall">Page-owned scroller t39</div></div>
+</section>
+<section id="t40" data-expect="visible" data-scene="dynamics"><span class="case-id">t40</span> <strong>Content size and subtree dynamics</strong>
+<div id="dynamic-host"><div class="box" id="dynamic-box"><div class="tall" id="dynamic-content">Dynamic content</div></div></div><button id="add">Add scroller</button><button id="remove">Remove added scroller</button><button id="grow">Grow</button><button id="shrink">Shrink to no overflow</button><button id="resize">Resize</button></section>
+<section id="t41" data-expect="record" data-scene="hydration"><span class="case-id">t41</span> <strong>Framework removes unexpected root child</strong>
+<p>This deliberately simulates a framework removing the unexpected root child. It is a JavaScript residual, not CSS resistance. Observe one delayed recovery and confirm no layout damage.</p><button id="framework-remove">Remove actual extension root child once</button><output id="framework-status">NOT_OBSERVED</output></section>
+<section id="t42" data-expect="record" data-scene="gate"><span class="case-id">t42</span> <strong>Per-engine root gutter branch</strong>
+<p>For each engine record the branch after drag/track/wheel at the ROOT strip in control, root-after, root-mask and root-clip scenes. Only a distinguishable Browser UX rail qualifies RAIL_VISIBLE_USABLE. NATIVE_UNOCCLUDED and ROOT_GUTTER_UNPAINTABLE both fail R5 qualification; never infer a custom rail from native visibility. If the surfaces cannot be distinguished, record FAIL.</p><label>Chrome149 <select class="root-branch"><option>NOT_RUN</option><option>RAIL_VISIBLE_USABLE</option><option>NATIVE_UNOCCLUDED</option><option>ROOT_GUTTER_UNPAINTABLE</option><option>FAIL</option></select></label><label>Firefox156 <select class="root-branch"><option>NOT_RUN</option><option>RAIL_VISIBLE_USABLE</option><option>NATIVE_UNOCCLUDED</option><option>ROOT_GUTTER_UNPAINTABLE</option><option>FAIL</option></select></label></section>
+<section id="t43" data-expect="record" data-scene="limits"><span class="case-id">t43</span> <strong>Discovery saturation and backoff</strong>
+<p>61,000 nodes are created only in limits scene or after this button. Check responsiveness and bounded refusal; do not treat a fixture count as runtime-state proof.</p><button id="stress">Create 61000 nodes</button><div id="stress-nodes"></div><output id="stress-status">NOT_RUN</output></section>
+<section id="t44" data-expect="visible" data-scene="focus"><span class="case-id">t44</span> <strong>Rail input must preserve page focus</strong>
+<label>Focus this input, then drag/click/wheel the root and nested rails <input id="focus-input"></label>
+<div class="box"><div class="tall">Focus-preservation scroller</div></div><output id="focus-status">NOT_OBSERVED</output>
+<p>Typing must continue in the input after each rail interaction. Do not click another page control between observations.</p></section>
+<section id="t45" data-expect="record" data-scene="root-zoom"><span class="case-id">t45</span> <strong>Late root zoom geometry refusal</strong>
+<button id="zoom-root">Set root zoom to 1.5 after rails appear</button>
+<p>Custom rails must disappear without moving into content; native scrolling remains. Reload to restore normal zoom. This refusal is an availability limit, not always-visible qualification.</p></section>
+<section id="t46" data-expect="suspended" data-scene="late-shadow"><span class="case-id">t46</span> <strong>Modal in an open root created after discovery</strong>
+<div id="late-shadow-host"></div><button id="late-shadow-open">Create open shadow root and open modal</button>
+<p>Wait for normal rails first. This attaches a root without a light-tree mutation. All custom rails must suspend and recover when the dialog closes; any failure is a material coexistence hold.</p></section>
+<div id="root-spacer" style="height:180vh">Root scrolling content</div>
+<script>
+(function () {
+ "use strict";
+ const allowed = ['control','overlays','visual-overlay','root-after','root-mask','root-clip','root-filter','root-opacity','root-transform','multi-routing','overlap','siblings','toplayer-dialog','pre-modal','toplayer-popover','pre-popover','pre-auto','toplayer-toast','fullscreen','shadow-modal','author-attacks','inert-clipped','geometry','dynamics','hydration','gate','limits','focus','root-zoom','late-shadow'];
+ const requested = new URLSearchParams(location.search).get('scene') || 'control';
+ const scene = allowed.includes(requested) ? requested : 'control';
+ document.documentElement.dataset.scene = scene;
+ const menu = document.getElementById('scene');
+ for (const name of allowed) { const option = document.createElement('option'); option.value = name; option.textContent = name; menu.appendChild(option); }
+ menu.value = scene; menu.addEventListener('change', () => { location.search = '?scene=' + encodeURIComponent(menu.value); });
+ for (const section of document.querySelectorAll('section[data-scene]')) section.hidden = !section.dataset.scene.split(' ').includes(scene);
+ function cover(className) { const el = document.createElement('div'); el.className = className; el.textContent = 'Ordinary author cover'; document.body.appendChild(el); return el; }
+ if (scene === 'overlays') cover('global-cover');
+ if (scene === 'visual-overlay') cover('visual-cover');
+ let overlay = null;
+ document.getElementById('dynamic-overlay').addEventListener('click', () => { if (overlay) { overlay.remove(); overlay = null; } else overlay = cover('visual-cover'); });
+ document.getElementById('drawer-toggle').addEventListener('click', () => { const el = document.getElementById('drawer'); el.hidden = !el.hidden; });
+ const modal = document.getElementById('modal');
+ document.getElementById('modal-open').addEventListener('click', () => modal.showModal());
+ document.getElementById('modal-close').addEventListener('click', () => modal.close());
+ for (const button of document.querySelectorAll('[data-show]')) button.addEventListener('click', () => document.getElementById(button.dataset.show).showPopover());
+ for (const button of document.querySelectorAll('[data-hide]')) button.addEventListener('click', () => document.getElementById(button.dataset.hide).hidePopover());
+ document.getElementById('fullscreen').addEventListener('click', () => document.getElementById('fullscreen-target').requestFullscreen());
+ for (const id of [24,25]) {
+  const root = document.getElementById('shadow-' + id).attachShadow({mode:id===24?'open':'closed'});
+  const dlg = document.createElement('dialog'), close = document.createElement('button');
+  dlg.textContent = 'Page shadow modal; observe actual Browser UX suspension.'; close.textContent = 'Close';
+  close.addEventListener('click', () => dlg.close()); dlg.appendChild(close); root.appendChild(dlg);
+  document.getElementById('shadow-open-' + id).addEventListener('click', () => dlg.showModal());
+ }
+ const slotRoot = document.getElementById('slot-host').attachShadow({mode:'open'});
+ const inertWrapper = document.createElement('div'), slot = document.createElement('slot');
+ inertWrapper.inert = true; slot.name = 'content'; inertWrapper.appendChild(slot); slotRoot.appendChild(inertWrapper);
+ const dynamicHost = document.getElementById('dynamic-host');
+ document.getElementById('add').addEventListener('click', () => { const box = document.createElement('div'), tall = document.createElement('div'); box.className = 'box'; tall.className = 'tall'; tall.textContent = 'Added page scroller'; box.appendChild(tall); dynamicHost.appendChild(box); });
+ document.getElementById('remove').addEventListener('click', () => { if (dynamicHost.children.length > 1) dynamicHost.lastElementChild.remove(); });
+ document.getElementById('grow').addEventListener('click', () => { document.getElementById('dynamic-content').style.height = '1200px'; });
+ document.getElementById('shrink').addEventListener('click', () => { document.getElementById('dynamic-content').style.height = '20px'; });
+ document.getElementById('resize').addEventListener('click', () => { document.getElementById('dynamic-box').style.height = '260px'; });
+ document.getElementById('framework-remove').addEventListener('click', () => {
+  const shell = document.querySelector('browser-ux-scrollbar-shell');
+  if (shell) { shell.remove(); document.getElementById('framework-status').textContent = 'REMOVED; observe actual delayed recovery'; }
+  else document.getElementById('framework-status').textContent = 'NO_HOST; no recovery claim';
+ });
+ let stressed = false;
+ function stress() { if (stressed) return; stressed = true; const fragment = document.createDocumentFragment(); for (let i = 0; i < 61000; i++) fragment.appendChild(document.createElement('div')); document.getElementById('stress-nodes').appendChild(fragment); document.getElementById('stress-status').textContent = '61000 page nodes; record actual responsiveness separately'; }
+ document.getElementById('stress').addEventListener('click', stress);
+ document.getElementById('focus-input').addEventListener('focus', () => { document.getElementById('focus-status').textContent = 'INPUT_FOCUSED'; });
+ document.getElementById('focus-input').addEventListener('blur', () => { document.getElementById('focus-status').textContent = 'INPUT_BLURRED: fail if caused by rail interaction'; });
+ document.getElementById('zoom-root').addEventListener('click', () => { document.documentElement.style.zoom = '1.5'; });
+ let lateDialog = null;
+ document.getElementById('late-shadow-open').addEventListener('click', () => {
+  if (!lateDialog) {
+   const root = document.getElementById('late-shadow-host').attachShadow({mode:'open'});
+   lateDialog = document.createElement('dialog'); const close = document.createElement('button');
+   lateDialog.textContent = 'Late open-shadow modal; all extension rails must suspend.';
+   close.textContent = 'Close'; close.addEventListener('click', () => lateDialog.close());
+   lateDialog.appendChild(close); root.appendChild(lateDialog);
+  }
+  lateDialog.showModal();
+ });
+ // Snapshot only the fixture's own nodes; no extension DOM, page text or rail
+ // internals are copied. Intentional fixture changes require baseline reset.
+ const owned = () => [...document.querySelectorAll('*')].filter((el) => el.localName !== 'browser-ux-scrollbar-shell');
+ function snapshot() { return JSON.stringify(owned().map((el) => { const cs = getComputedStyle(el); return { connected:el.isConnected, tag:el.localName, attrs:[...el.attributes].map((a)=>[a.name,a.value]), overflow:[cs.overflowX,cs.overflowY] }; })); }
+ let baseline;
+ document.getElementById('baseline').addEventListener('click', () => { baseline = snapshot(); document.getElementById('layout-status').textContent = 'BASELINE_RECORDED'; });
+ document.getElementById('compare').addEventListener('click', () => { document.getElementById('layout-status').textContent = snapshot() === baseline ? 'SAME' : 'CHANGED'; });
+ // Preexisting page top-layer entries open before the extension's lazy rAF.
+ if (scene === 'pre-modal') modal.showModal();
+ if (scene === 'pre-popover') document.getElementById('pop-18').showPopover();
+ if (scene === 'pre-auto') document.getElementById('pop-19').showPopover();
+ if (scene === 'toplayer-toast') document.getElementById('pop-22').showPopover();
+ if (scene === 'limits') stress();
+ document.addEventListener('DOMContentLoaded', () => { baseline = snapshot(); });
+})();
+</script></body></html>

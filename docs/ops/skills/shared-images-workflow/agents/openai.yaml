@@ -1,0 +1,4 @@
+interface:
+  display_name: "Shared Images Workflow"
+  short_description: "Maintain the shared anime image archive"
+  default_prompt: "Use $shared-images-workflow to triage, edit, audit, or sync the shared-images archive."

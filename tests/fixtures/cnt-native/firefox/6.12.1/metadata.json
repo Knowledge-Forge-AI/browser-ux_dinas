@@ -1,0 +1,81 @@
+{
+  "schema": "browser-ux-native-subset-evidence-v1",
+  "engine": "firefox",
+  "version": "6.12.1",
+  "extension_id": "clear-new-tab@loftyshaky",
+  "manifest_version": 3,
+  "synthetic_only": true,
+  "lane_status": "BLOCKED",
+  "observed_case": "UI_EXPORT_IMPORT_REEXPORT_EQUAL",
+  "acceptance": "NOT_CHARACTERIZED",
+  "comparison": "Exact native UTF-8 JSON bytes and parsed objects; filenames recorded separately. No exclusions or artifact rewriting.",
+  "native_artifacts": {
+    "export": {
+      "file": "export.json",
+      "sha256": "1e38d8c87c9fdb9ba6a6f1f0cdd66b393f7a929266b5ece9524667a494323a4c",
+      "native_filename": "Clear New Tab back up 9/27/2026, 14:25:27 Part 1.json"
+    },
+    "reexport": {
+      "file": "reexport.json",
+      "sha256": "1e38d8c87c9fdb9ba6a6f1f0cdd66b393f7a929266b5ece9524667a494323a4c",
+      "native_filename": "Clear New Tab back up 9/27/2026, 14:25:48 Part 1.json"
+    }
+  },
+  "content_sha256": [
+    "b1ff9c8ea3a780bad09b346c423d2d0e46815926879b18e841d928376a946640",
+    "64abf93fb4c16b4258aa6eff5660a6b97b013a1b9c0cc877fcceb14c6764680f",
+    "fce481932ea5d07a91c7991c09fdadb4bf78f9b4cc8f927188384231f9d12679",
+    "b1ff9c8ea3a780bad09b346c423d2d0e46815926879b18e841d928376a946640"
+  ],
+  "unexercised": [
+    "tasks",
+    "themes",
+    "multipart threshold/order/incomplete/duplicate parts",
+    "unknown fields",
+    "malformed/destructive pre-import completion",
+    "rank gaps"
+  ],
+  "volatile_fields": [
+    "Download filename includes native locale and clock; preserved in metadata. IDs and ranks are not excluded."
+  ],
+  "clock_rng": "Native host inputs; no replacement. Fixed seed File.lastModified disclosed.",
+  "package_sha256": "bd6ed1160739fb475e4f13c9f43885436f9a5ef6395be8ca514773e77ae9cf9f",
+  "native_member_sha256": {
+    "announcement.mjs": "d9645f550c1b1ffc69e7d3fa66ce51dd2a20f2e625fa88aa1d70abe980748c30",
+    "background.mjs": "596f6e50361cd28d505a2e0b165e44f9e58c63c27b3d8ef49c46fec7e8d8aef2",
+    "chunks/body.mjs": "ac6059ebaf18ab5b3b6615a851bd3db04c5359e66f991f4fec8cdf6c3ce54a3a",
+    "chunks/body2.mjs": "4927566f8a6f8260ee0b7144bf192b84252afd3eb848d940921a6b25e2466e3f",
+    "chunks/client.mjs": "7f21430eecdd4fb78aa7ef4b13c42ee79721a77064e7b1c41900a1bb17e2634a",
+    "chunks/internal.mjs": "53b7a1cbe81b0c3263c5f250afc2a152dc55244b88e54480f3b0bb183f2def8c",
+    "chunks/internal2.mjs": "bfdeae22b717bc4d4fa02d05c6417f748e85b9e605a175b5192f90943c4a5a29",
+    "chunks/internal3.mjs": "a751464b910f968d1514b6e4eb2438be44a0c59b81067efee063f8726ca73efa",
+    "chunks/internal4.mjs": "aa88f270bab32aff39684864efe0b4b18fb251f1522a66d299ca8e12513f90cc",
+    "chunks/internal5.mjs": "a6ca776bed8756cd9253f3fe0d75763df377deb2f63034998e2e3a0ce387d7e5",
+    "chunks/isArrayLikeObject.mjs": "ad95ec60ace694e1028c7625c44cdc7800db132324ced51816140960801a9290",
+    "chunks/isEmpty.mjs": "e99f6ebef7244e20e17fb6fa12585fbef889f1f734357423595894adf63ec243",
+    "chunks/maxBy.mjs": "70a6a3f5def7905d403243fe73ec110f82b80eb810233753d48a6b7306534010",
+    "chunks/pickr.min.mjs": "a55fae276a86abf9abf6c584cbc5bd92e95d847bb84aa977066b83472269bf51",
+    "chunks/scripts.mjs": "1d02b080228d5fd415c340e1b7c183220fd14d6e3c0e24a7f86cb0c3f84b1888",
+    "dependencies.mjs": "9caedee831b8449c0b9bb9261512856a8ac862f46bf16c2b8c114621e18becaa",
+    "new_tab.mjs": "d67864235ea09896c38a26443e4d665454cb5a3912f6ec7313523a7a761a191c",
+    "offscreen.mjs": "94d269ad362debb666325b8c1f889d74cd1b7715af52eca098cd461e6098890e",
+    "preload_color.mjs": "e279a06c01320230e265f90291bac0abac9b3b365fa179fed0a2124b2fce32a8",
+    "sandbox.mjs": "213a9921557b9a40db2e6eebbdb32f050e7964f56978c2a99b7efb3120122996",
+    "settings.mjs": "28666d9440bf32c7e415833de72dcde446bd1284813d16285196b6d89018eca7"
+  },
+  "harness_sha256": {
+    "cnt-native-firefox-ui.py": "c12db1959b309e3f683cc0d102b8c4c3145a37a1d6b6e4c889301365cb5c0e51",
+    "cnt-native-firefox-ui.js": "d8c195ea93d6fdd3e3ee8e5f0642e8f713f61eaec5686f5aceb502889d9fc12e"
+  },
+  "adapters": {
+    "Marionette transport": "host automation boundary",
+    "DataTransfer/File/change": "host input boundary; native upload and restore event handlers",
+    "CodeMirror.setValue": "native editor input events; sequential edits allow native debounce",
+    "URL.createObjectURL": "host download boundary; delegates original and records Blob",
+    "HTMLAnchorElement.click": "host download boundary; captures native Blob and filename, omits OS save UI",
+    "storage/merge/schema/settings/tasks/custom-code/serialization": "native implementations; no replacements",
+    "readiness": "wait for native backup UI; bounded delays, artifact assertions required"
+  },
+  "browser_version": "155.0.1",
+  "native_execution": "Complete unmodified XPI loaded; no extraction or native body edits."
+}

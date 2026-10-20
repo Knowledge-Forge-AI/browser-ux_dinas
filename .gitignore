@@ -1,0 +1,6 @@
+/.serena/
+/result
+/result-*
+.DS_Store
+__pycache__/
+/delivery/primary-cutover/inbox/

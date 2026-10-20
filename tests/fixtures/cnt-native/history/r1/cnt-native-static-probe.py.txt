@@ -1,0 +1,93 @@
+"""Dispatch-only, partial native importer probe. Never claims a round trip.
+
+Usage: python3 tests/cnt-native-static-probe.py --node /nix/store/.../bin/node
+Requires the operator's ignored static evidence; absence is a hard failure.
+No extension source or generated native artifact is written to the repository.
+"""
+import argparse
+import base64
+import hashlib
+import json
+from pathlib import Path, PurePosixPath
+import stat
+import subprocess
+import zipfile
+from cnt_native_evidence import tree_digest
+
+
+ROOT = Path(__file__).resolve().parents[1]
+EVIDENCE = ROOT / ".scratch/bux5b0-static-packages"
+FIREFOX_DIGEST = "bd6ed1160739fb475e4f13c9f43885436f9a5ef6395be8ca514773e77ae9cf9f"
+CHROME_DIGEST = "fe6261cba7b97fcbbde9a1287ca6094bb3e95d73a0cdfd8493f9e3a6dcddd739"
+MEMBER_DIGEST = "a751464b910f968d1514b6e4eb2438be44a0c59b81067efee063f8726ca73efa"
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def safe_file(relative):
+    path = ROOT
+    for part in PurePosixPath(relative).parts:
+        require(part not in ("..", "/"), "unsafe evidence path")
+        path /= part
+        require(not path.is_symlink(), "symlink evidence refused")
+    require(path.is_file(), "required static evidence unavailable")
+    return path
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--node", type=Path, required=True)
+    args = parser.parse_args()
+    require(str(args.node.resolve()).startswith("/nix/store/"), "Nix Node required")
+    provenance = json.loads(safe_file(".scratch/bux5b0-static-packages/provenance.json").read_bytes())
+    require(provenance["schema"] == "browser-ux-cnt-static-package-evidence-v1", "schema drift")
+    for key, expected in (("synthetic_or_static_only", True),
+                          ("live_cnt_runtime_storage_read", False),
+                          ("live_cnt_runtime_storage_written", False)):
+        require(provenance[key] is expected, "safety flag drift")
+    for engine, version, identity, digest, path, algorithm in (
+        ("chrome", "6.12.0", "felphkbfjadmcejnibcmcncimlappdde", CHROME_DIGEST,
+         ".scratch/bux5b0-static-packages/chrome/package", "browser-ux-static-tree-sha256-v1"),
+        ("firefox", "6.12.1", "clear-new-tab@loftyshaky", FIREFOX_DIGEST,
+         ".scratch/bux5b0-static-packages/firefox/clear-new-tab.xpi", "sha256-file"),
+    ):
+        lane = provenance[engine]
+        for key, value in {"engine": engine, "version": version, "extension_id": identity,
+                           "digest": digest, "evidence_path": path,
+                           "digest_algorithm": algorithm, "manifest_version": 3}.items():
+            require(lane[key] == value, f"{engine} provenance drift: {key}")
+    require(tree_digest(EVIDENCE / "chrome/package") == CHROME_DIGEST, "Chrome tree digest mismatch")
+    chrome = json.loads(safe_file(provenance["chrome"]["evidence_path"] + "/manifest.json").read_bytes())
+    key_hash = hashlib.sha256(base64.b64decode(chrome["key"], validate=True)).hexdigest()[:32]
+    identity = "".join(chr(ord("a") + int(c, 16)) for c in key_hash)
+    require(identity == provenance["chrome"]["extension_id"], "Chrome identity drift")
+    require((chrome["version"], chrome["manifest_version"]) == ("6.12.0", 3), "Chrome version drift")
+    archive = safe_file(provenance["firefox"]["evidence_path"])
+    require(hashlib.sha256(archive.read_bytes()).hexdigest() == FIREFOX_DIGEST, "Firefox digest mismatch")
+    with zipfile.ZipFile(archive) as package:
+        names = package.namelist()
+        require(len(names) == len(set(names)), "duplicate archive members")
+        for info in package.infolist():
+            member = PurePosixPath(info.filename)
+            require(not member.is_absolute() and ".." not in member.parts
+                    and "\\" not in info.filename, "unsafe archive member")
+            require(not stat.S_ISLNK(info.external_attr >> 16), "archive symlink refused")
+        manifest = json.loads(package.read("manifest.json"))
+        require(manifest["browser_specific_settings"]["gecko"]["id"] == "clear-new-tab@loftyshaky", "Firefox ID drift")
+        require((manifest["version"], manifest["manifest_version"]) == ("6.12.1", 3), "Firefox version drift")
+        source = package.read("chunks/internal3.mjs")
+    require(hashlib.sha256(source).hexdigest() == MEMBER_DIGEST, "executed member drift")
+    result = subprocess.run([str(args.node), str(ROOT / "tests/cnt-native-import-prefix.mjs")],
+                            input=source, capture_output=True, check=True, timeout=30)
+    probe = json.loads(result.stdout)
+    print(json.dumps({"chrome": "VERIFIED_STATIC_INPUT_ONLY", "chrome_manifest_identity": identity,
+                      "firefox_archive_sha256": FIREFOX_DIGEST,
+                      "executed_member_sha256": MEMBER_DIGEST, "probe": probe,
+                      "round_trip": "NOT_EXECUTED", "foundation": "DEFERRED"}, indent=2))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,15 @@
+#!/usr/bin/env python3
+"""Promote an archived original over a transparent production variant."""
+
+from __future__ import annotations
+
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "libexec" / "shared-images"))
+
+from promote_original import main
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

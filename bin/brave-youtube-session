@@ -1,0 +1,639 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+app_name="Brave YouTube"
+youtube_url="${BRAVE_YOUTUBE_URL:-${YOUTUBE_BRAVE_URL:-${YOUTUBE_CHROME_URL:-https://www.youtube.com/}}}"
+browser_app_bundle="${BRAVE_YOUTUBE_APP_BUNDLE:-${YOUTUBE_BRAVE_APP_BUNDLE:-$HOME/Applications/Brave YouTube.app}}"
+browser_bin="${BRAVE_YOUTUBE_BIN:-${YOUTUBE_BRAVE_BIN:-$browser_app_bundle/Contents/MacOS/Brave YouTube.bin}}"
+browser_user_data_dir="${BRAVE_YOUTUBE_USER_DATA_DIR:-${YOUTUBE_BRAVE_USER_DATA_DIR:-$HOME/Library/Application Support/Brave YouTube}}"
+theme_extension_dir="${BRAVE_YOUTUBE_THEME_EXTENSION_DIR:-$browser_user_data_dir/brave-youtube-theme}"
+clear_new_tab_extension_id="felphkbfjadmcejnibcmcncimlappdde"
+clear_new_tab_extension_dir="${BRAVE_YOUTUBE_CLEAR_NEW_TAB_EXTENSION_DIR:-$browser_user_data_dir/clear-new-tab-extension}"
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/brave-youtube-session"
+low_battery_percent="${BRAVE_YOUTUBE_LOW_BATTERY_PERCENT:-${YOUTUBE_BRAVE_LOW_BATTERY_PERCENT:-${YOUTUBE_CHROME_LOW_BATTERY_PERCENT:-20}}}"
+check_interval="${BRAVE_YOUTUBE_CHECK_INTERVAL:-${YOUTUBE_BRAVE_CHECK_INTERVAL:-${YOUTUBE_CHROME_CHECK_INTERVAL:-15}}}"
+launch_label="${BRAVE_YOUTUBE_LAUNCH_LABEL:-local.brave-youtube-session}"
+legacy_launch_label="${YOUTUBE_BRAVE_LAUNCH_LABEL:-local.youtube-chrome-session}"
+date_bin="${BRAVE_YOUTUBE_DATE:-/bin/date}"
+pmset_bin="${BRAVE_YOUTUBE_PMSET:-/usr/bin/pmset}"
+sudo_bin="${BRAVE_YOUTUBE_SUDO:-/usr/bin/sudo}"
+caffeinate_bin="${BRAVE_YOUTUBE_CAFFEINATE:-/usr/bin/caffeinate}"
+open_bin="${BRAVE_YOUTUBE_OPEN:-/usr/bin/open}"
+sleep_bin="${BRAVE_YOUTUBE_SLEEP:-/bin/sleep}"
+launchctl_bin="${BRAVE_YOUTUBE_LAUNCHCTL:-/bin/launchctl}"
+ps_bin="${BRAVE_YOUTUBE_PS:-/bin/ps}"
+kill_bin="${BRAVE_YOUTUBE_KILL:-/bin/kill}"
+id_bin="${BRAVE_YOUTUBE_ID:-/usr/bin/id}"
+
+usage() {
+  cat <<'USAGE'
+Usage: brave-youtube-session [start|open|stop|status|is-active|daemon]
+
+Start the dedicated Brave YouTube app inside a clamshell media session.
+The app opens YouTube by default. The power monitor tracks YouTube,
+Crunchyroll, Netflix, Prime Video, and Twitch pages in this app profile.
+
+Environment:
+  BRAVE_YOUTUBE_URL=https://www.youtube.com/
+  BRAVE_YOUTUBE_APP_BUNDLE=~/Applications/Brave YouTube.app
+  BRAVE_YOUTUBE_USER_DATA_DIR=~/Library/Application Support/Brave YouTube
+  BRAVE_YOUTUBE_THEME_EXTENSION_DIR=~/Library/Application Support/Brave YouTube/brave-youtube-theme
+  BRAVE_YOUTUBE_CLEAR_NEW_TAB_EXTENSION_DIR=~/Library/Application Support/Brave YouTube/clear-new-tab-extension
+  BRAVE_YOUTUBE_LOW_BATTERY_PERCENT=20
+  BRAVE_YOUTUBE_CHECK_INTERVAL=15
+USAGE
+}
+
+command="${1:-start}"
+
+session_pid_file="$state_dir/session.pid"
+caffeinate_pid_file="$state_dir/caffeinate.pid"
+previous_sleep_file="$state_dir/previous-sleep-disabled"
+power_active_file="$state_dir/power-active"
+debug_port_file="$state_dir/debug-port"
+media_state_file="$state_dir/media-state"
+log_file="$state_dir/session.log"
+launch_plist_file="$state_dir/$launch_label.plist"
+
+script_path() {
+  local script_dir
+  local script_name
+
+  if [ "${BRAVE_YOUTUBE_SOURCE_ONLY:-0}" = "1" ]; then
+    printf '%s\n' "${BASH_SOURCE[0]}"
+    return
+  fi
+
+  case "$0" in
+    /*)
+      printf '%s\n' "$0"
+      ;;
+    */*)
+      script_dir="$(/usr/bin/dirname "$0")"
+      script_name="$(/usr/bin/basename "$0")"
+      printf '%s/%s\n' "$(cd "$script_dir" && /bin/pwd -P)" "$script_name"
+      ;;
+    *)
+      command -v "$0"
+      ;;
+  esac
+}
+
+script_dir() {
+  /usr/bin/dirname "$(script_path)"
+}
+
+cdp_helper() {
+  if [ -n "${BRAVE_YOUTUBE_CDP_HELPER:-}" ]; then
+    printf '%s\n' "$BRAVE_YOUTUBE_CDP_HELPER"
+  elif [ -n "${YOUTUBE_BRAVE_CDP_HELPER:-}" ]; then
+    printf '%s\n' "$YOUTUBE_BRAVE_CDP_HELPER"
+  elif [ -n "${YOUTUBE_CHROME_CDP_HELPER:-}" ]; then
+    printf '%s\n' "$YOUTUBE_CHROME_CDP_HELPER"
+  else
+    printf '%s/brave-youtube-cdp\n' "$(script_dir)"
+  fi
+}
+
+clear_new_tab_sync_helper() {
+  if [ -n "${BRAVE_YOUTUBE_CLEAR_NEW_TAB_SYNC:-}" ]; then
+    printf '%s\n' "$BRAVE_YOUTUBE_CLEAR_NEW_TAB_SYNC"
+  else
+    printf '%s/clear-new-tab-sync\n' "$(script_dir)"
+  fi
+}
+
+sync_clear_new_tab() {
+  local helper
+
+  helper="$(clear_new_tab_sync_helper)"
+  if [ -x "$helper" ]; then
+    if ! BRAVE_YOUTUBE_USER_DATA_DIR="$browser_user_data_dir" "$helper" brave-youtube >/dev/null; then
+      echo "brave-youtube-session: Clear New Tab sync failed; launching without refreshed wallpapers" >&2
+    fi
+  else
+    echo "brave-youtube-session: Clear New Tab sync helper not found at $helper" >&2
+  fi
+}
+
+notify() {
+  local message="$1"
+
+  /usr/bin/osascript "$(script_dir)/../libexec/brave-youtube/display-notification.applescript" "$app_name" "$message" >/dev/null 2>&1 || true
+}
+
+log_session() {
+  printf '%s %s\n' "$("$date_bin" '+%Y-%m-%d %H:%M:%S')" "$*" >>"$log_file"
+}
+
+sleep_disabled() {
+  "$pmset_bin" -g 2>/dev/null |
+    /usr/bin/awk -f "$(script_dir)/../libexec/brave-youtube/pmset-sleep-disabled.awk"
+}
+
+power_source() {
+  "$pmset_bin" -g ps 2>/dev/null |
+    /usr/bin/awk -f "$(script_dir)/../libexec/brave-youtube/pmset-power-source.awk"
+}
+
+battery_percent() {
+  "$pmset_bin" -g batt 2>/dev/null |
+    /usr/bin/awk -f "$(script_dir)/../libexec/brave-youtube/pmset-battery-percent.awk"
+}
+
+launch_domain() {
+  printf 'gui/%s\n' "$("$id_bin" -u)"
+}
+
+remove_launch_job_by_label() {
+  local label="$1"
+
+  "$launchctl_bin" bootout "$(launch_domain)/$label" >/dev/null 2>&1 || true
+  "$launchctl_bin" remove "$label" >/dev/null 2>&1 || true
+}
+
+remove_launch_job() {
+  remove_launch_job_by_label "$launch_label"
+  if [ "$legacy_launch_label" != "$launch_label" ]; then
+    remove_launch_job_by_label "$legacy_launch_label"
+  fi
+}
+
+session_running() {
+  local session_pid=""
+
+  if [ -f "$session_pid_file" ]; then
+    session_pid="$(/bin/cat "$session_pid_file")"
+    [ -n "$session_pid" ] && "$kill_bin" -0 "$session_pid" 2>/dev/null
+    return
+  fi
+
+  return 1
+}
+
+browser_profile_running() {
+  "$ps_bin" -axo command= 2>/dev/null |
+    /usr/bin/awk -v bin="$browser_bin" -v needle="--user-data-dir=$browser_user_data_dir" \
+      'index($0, bin) && index($0, needle) { found=1 } END { exit !found }'
+}
+
+profile_extension_audit() {
+  local secure_preferences="$browser_user_data_dir/Default/Secure Preferences"
+
+  /usr/bin/python3 "$(script_dir)/../libexec/brave-youtube/profile-extension-audit.py" "$secure_preferences" "$theme_extension_dir" "$clear_new_tab_extension_dir" "$clear_new_tab_extension_id"
+}
+
+allocate_debug_port() {
+  /usr/bin/python3 "$(script_dir)/../libexec/brave-youtube/allocate-debug-port.py"
+}
+
+cdp_port() {
+  if [ -f "$debug_port_file" ]; then
+    /bin/cat "$debug_port_file"
+  fi
+}
+
+cdp_page_state() {
+  local port="$1"
+  local helper
+
+  helper="$(cdp_helper)"
+  if [ -x "$helper" ] && [ -n "$port" ]; then
+    "$helper" page-state "$port" 2>/dev/null || true
+  else
+    printf 'unavailable reason=missing_cdp_helper\n'
+  fi
+}
+
+cdp_media_state() {
+  local port="$1"
+  local helper
+
+  helper="$(cdp_helper)"
+  if [ -x "$helper" ] && [ -n "$port" ]; then
+    "$helper" media-state "$port" 2>/dev/null || true
+  else
+    printf 'unknown reason=missing_cdp_helper\n'
+  fi
+}
+
+cdp_close_browser() {
+  local port="$1"
+  local helper
+
+  helper="$(cdp_helper)"
+  if [ -x "$helper" ] && [ -n "$port" ]; then
+    "$helper" close-browser "$port" >/dev/null 2>&1 || true
+  fi
+}
+
+wait_for_cdp() {
+  local port="$1"
+  local attempts="${2:-40}"
+  local i=0
+
+  while [ "$i" -lt "$attempts" ]; do
+    case "$(cdp_page_state "$port")" in
+      unavailable*)
+        ;;
+      *)
+        return 0
+        ;;
+    esac
+    i=$((i + 1))
+    "$sleep_bin" 0.25
+  done
+
+  return 1
+}
+
+write_launch_plist() {
+  local self="$1"
+
+  /usr/bin/python3 "$(script_dir)/../libexec/brave-youtube/write-launch-plist.py" "$launch_plist_file" "$launch_label" "$self" "$log_file"
+}
+
+stop_caffeinate() {
+  local caffeinate_pid
+
+  if [ -f "$caffeinate_pid_file" ]; then
+    caffeinate_pid="$(/bin/cat "$caffeinate_pid_file")"
+    if [ -n "$caffeinate_pid" ]; then
+      "$kill_bin" "$caffeinate_pid" 2>/dev/null || true
+    fi
+  fi
+  /bin/rm -f "$caffeinate_pid_file"
+}
+
+restore_video_session_power() {
+  local previous_sleep_disabled="0"
+
+  if [ -f "$previous_sleep_file" ]; then
+    previous_sleep_disabled="$(/bin/cat "$previous_sleep_file")"
+  fi
+
+  if [ "$previous_sleep_disabled" != "1" ]; then
+    "$sudo_bin" -n "$pmset_bin" -a disablesleep 0 2>/dev/null || true
+  fi
+}
+
+enable_video_session_power() {
+  local caffeinate_pid=""
+
+  if [ -f "$power_active_file" ]; then
+    return 0
+  fi
+
+  if ! "$sudo_bin" -n "$pmset_bin" -a disablesleep 1; then
+    echo "brave-youtube-session: video session sudoers rule is not available" >&2
+    return 1
+  fi
+
+  if [ -f "$caffeinate_pid_file" ]; then
+    caffeinate_pid="$(/bin/cat "$caffeinate_pid_file")"
+  fi
+
+  if [ -z "$caffeinate_pid" ] || ! "$kill_bin" -0 "$caffeinate_pid" 2>/dev/null; then
+    "$caffeinate_bin" -d -i -m -u &
+    caffeinate_pid=$!
+    echo "$caffeinate_pid" >"$caffeinate_pid_file"
+  fi
+
+  : >"$power_active_file"
+}
+
+disable_video_session_power() {
+  if [ ! -f "$power_active_file" ]; then
+    return 0
+  fi
+
+  stop_caffeinate
+  restore_video_session_power
+  /bin/rm -f "$power_active_file"
+}
+
+cleanup_state_files() {
+  /bin/rm -f \
+    "$session_pid_file" \
+    "$caffeinate_pid_file" \
+    "$previous_sleep_file" \
+    "$power_active_file" \
+    "$debug_port_file" \
+    "$media_state_file"
+}
+
+cleanup_stale_session() {
+  if [ -f "$session_pid_file" ] && ! session_running; then
+    stop_caffeinate
+    restore_video_session_power
+    remove_launch_job
+    cleanup_state_files
+  fi
+}
+
+terminate_browser_profile() {
+  local port
+
+  port="$(cdp_port || true)"
+  if [ -n "$port" ]; then
+    cdp_close_browser "$port"
+    "$sleep_bin" 0.5
+  fi
+
+  "$ps_bin" -axo pid=,command= 2>/dev/null |
+    /usr/bin/awk -v bin="$browser_bin" -v needle="--user-data-dir=$browser_user_data_dir" \
+      'index($0, bin) && index($0, needle) { print $1 }' |
+    while IFS= read -r pid; do
+      [ -n "$pid" ] && "$kill_bin" "$pid" 2>/dev/null || true
+    done
+}
+
+launch_browser_app() {
+  local debug_port="$1"
+  local extension_dirs=""
+  local args=()
+
+  if [ ! -d "$browser_app_bundle" ]; then
+    echo "brave-youtube-session: app bundle not found at $browser_app_bundle" >&2
+    return 1
+  fi
+
+  if [ ! -x "$browser_bin" ]; then
+    echo "brave-youtube-session: Brave browser binary not found at $browser_bin" >&2
+    return 1
+  fi
+
+  if [ ! -f "$theme_extension_dir/manifest.json" ]; then
+    echo "brave-youtube-session: theme extension not found at $theme_extension_dir" >&2
+    return 1
+  fi
+
+  sync_clear_new_tab
+  extension_dirs="$theme_extension_dir"
+  if [ -f "$clear_new_tab_extension_dir/manifest.json" ]; then
+    extension_dirs="$extension_dirs,$clear_new_tab_extension_dir"
+  fi
+
+  /bin/mkdir -p "$browser_user_data_dir"
+  /usr/bin/touch "$browser_user_data_dir/First Run"
+
+  args=()
+  args+=("--brave-youtube-internal")
+  args+=("--user-data-dir=$browser_user_data_dir")
+  args+=("--profile-directory=Default")
+  args+=("--no-first-run")
+  args+=("--no-default-browser-check")
+  args+=("--disable-sync")
+  args+=("--disable-extensions-except=$extension_dirs")
+  args+=("--load-extension=$extension_dirs")
+  args+=("--disable-component-extensions-with-background-pages")
+  args+=("--remote-debugging-address=127.0.0.1")
+  args+=("--remote-debugging-port=$debug_port")
+  args+=("--new-window")
+  args+=("$youtube_url")
+
+  "$open_bin" -n "$browser_app_bundle" --args "${args[@]}" >/dev/null 2>&1
+}
+
+page_state_kind() {
+  local state="$1"
+  printf '%s\n' "$state" |
+    /usr/bin/awk -f "$(script_dir)/../libexec/brave-youtube/first-field.awk"
+}
+
+start_session() {
+  local debug_port
+  local current_source=""
+  local current_battery=""
+  local media_state=""
+  local media_kind=""
+  local page_state=""
+  local page_kind=""
+  local no_page_count=0
+
+  umask 077
+  /bin/mkdir -p "$state_dir"
+
+  if session_running; then
+    echo "$app_name session is already running with pid $(/bin/cat "$session_pid_file")"
+    exit 0
+  fi
+
+  echo "$$" >"$session_pid_file"
+  sleep_disabled >"$previous_sleep_file"
+  debug_port="$(allocate_debug_port)"
+  echo "$debug_port" >"$debug_port_file"
+  echo "unknown reason=startup" >"$media_state_file"
+
+  cleanup() {
+    disable_video_session_power
+    terminate_browser_profile
+    cleanup_state_files
+  }
+
+  request_stop() {
+    terminate_browser_profile
+  }
+
+  trap cleanup EXIT
+  trap request_stop INT TERM HUP
+
+  {
+    printf '%s starting %s\n' "$("$date_bin" '+%Y-%m-%d %H:%M:%S')" "$youtube_url"
+    printf 'debug_port=%s\n' "$debug_port"
+    printf 'user_data_dir=%s\n' "$browser_user_data_dir"
+    printf 'low_battery_percent=%s\n' "$low_battery_percent"
+  } >>"$log_file"
+
+  current_source="$(power_source || true)"
+  current_battery="$(battery_percent || true)"
+  if [ "$current_source" = "Battery Power" ] &&
+    [ -n "$current_battery" ] &&
+    [ "$current_battery" -le "$low_battery_percent" ]; then
+    log_session "not starting: battery ${current_battery}% <= ${low_battery_percent}% while on Battery Power"
+    notify "Not starting session at ${current_battery}% battery"
+    return 0
+  fi
+
+  enable_video_session_power
+  notify "Starting Brave YouTube session"
+
+  launch_browser_app "$debug_port"
+  wait_for_cdp "$debug_port" || true
+
+  while true; do
+    current_source="$(power_source || true)"
+    current_battery="$(battery_percent || true)"
+
+    if [ "$current_source" = "Battery Power" ] &&
+      [ -n "$current_battery" ] &&
+      [ "$current_battery" -le "$low_battery_percent" ]; then
+      log_session "ending: battery ${current_battery}% <= ${low_battery_percent}% while on Battery Power"
+      notify "Ending session at ${current_battery}% battery"
+      terminate_browser_profile
+      break
+    fi
+
+    page_state="$(cdp_page_state "$debug_port")"
+    page_kind="$(page_state_kind "$page_state")"
+    case "$page_kind" in
+      no_pages)
+        no_page_count=$((no_page_count + 1))
+        ;;
+      pages|unavailable)
+        no_page_count=0
+        ;;
+      *)
+        no_page_count=0
+        ;;
+    esac
+
+    if [ "$no_page_count" -ge 2 ] || { [ "$page_kind" = "unavailable" ] && ! browser_profile_running; }; then
+      log_session "ending: page_state=${page_state}; browser_profile_running=$(browser_profile_running && printf yes || printf no)"
+      break
+    fi
+
+    media_state="$(cdp_media_state "$debug_port")"
+    echo "$media_state" >"$media_state_file"
+    media_kind="$(page_state_kind "$media_state")"
+
+    if [ "$media_kind" = "not_playing" ]; then
+      disable_video_session_power
+    else
+      enable_video_session_power
+    fi
+
+    "$sleep_bin" "$check_interval"
+  done
+}
+
+start_background() {
+  local self
+
+  /bin/mkdir -p "$state_dir"
+  cleanup_stale_session
+
+  if session_running; then
+    echo "$app_name session is already running with pid $(/bin/cat "$session_pid_file")"
+    return 0
+  fi
+
+  self="$(script_path)"
+  write_launch_plist "$self"
+  remove_launch_job
+  "$launchctl_bin" bootstrap "$(launch_domain)" "$launch_plist_file"
+
+  "$sleep_bin" 1
+  if session_running; then
+    echo "Started $app_name session with pid $(/bin/cat "$session_pid_file")"
+  else
+    echo "$app_name session exited during startup; see $log_file" >&2
+    /usr/bin/tail -n 1 "$log_file" >&2 || true
+    return 1
+  fi
+}
+
+stop_session() {
+  local session_pid=""
+  local stopped=0
+
+  remove_launch_job
+  terminate_browser_profile
+
+  if [ -f "$session_pid_file" ]; then
+    session_pid="$(/bin/cat "$session_pid_file")"
+    if [ -n "$session_pid" ] && "$kill_bin" -0 "$session_pid" 2>/dev/null; then
+      "$kill_bin" "$session_pid" 2>/dev/null || true
+      stopped=1
+    fi
+  fi
+
+  stop_caffeinate
+  restore_video_session_power
+  cleanup_state_files
+
+  if [ "$stopped" = "1" ]; then
+    echo "Stopped $app_name session"
+  else
+    echo "$app_name session is not running"
+  fi
+}
+
+status_session() {
+  local port=""
+  local page_state="unavailable reason=no_debug_port"
+  local media_state="unknown reason=no_debug_port"
+
+  printf '%s\n' "$app_name"
+  printf 'launcher: %s\n' "$browser_app_bundle"
+  printf 'profile: %s\n' "$browser_user_data_dir"
+
+  if [ -f "$debug_port_file" ]; then
+    port="$(/bin/cat "$debug_port_file")"
+  fi
+
+  if session_running; then
+    printf 'session: running pid=%s\n' "$(/bin/cat "$session_pid_file")"
+  else
+    printf 'session: stopped\n'
+  fi
+
+  if browser_profile_running; then
+    printf 'browser_profile: running\n'
+  else
+    printf 'browser_profile: stopped\n'
+  fi
+
+  if [ -n "$port" ]; then
+    page_state="$(cdp_page_state "$port")"
+    media_state="$(cdp_media_state "$port")"
+  elif [ -f "$media_state_file" ]; then
+    media_state="$(/bin/cat "$media_state_file")"
+  fi
+
+  printf 'pages: %s\n' "$page_state"
+  printf 'media: %s\n' "$media_state"
+
+  printf 'ad_blocking: Brave Shields; local theme and Clear New Tab allowed\n'
+  printf 'theme_extension: %s\n' "$theme_extension_dir"
+  printf 'clear_new_tab_extension: %s\n' "$clear_new_tab_extension_dir"
+  printf 'extension_audit: %s\n' "$(profile_extension_audit)"
+
+  printf 'power_source: %s\n' "$(power_source || true)"
+  printf 'battery: %s%%\n' "$(battery_percent || true)"
+  printf 'sleep_disabled: %s\n' "$(sleep_disabled || true)"
+  printf 'low_battery_percent: %s%%\n' "$low_battery_percent"
+  printf 'check_interval: %ss\n' "$check_interval"
+}
+
+dispatch() {
+  case "$command" in
+    start|open)
+      start_background
+      ;;
+    daemon)
+      start_session
+      ;;
+    stop)
+      stop_session
+      ;;
+    status)
+      status_session
+      ;;
+    is-active)
+      session_running
+      ;;
+    -h|--help|help)
+      usage
+      ;;
+    *)
+      echo "brave-youtube-session: unknown command: $command" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+}
+
+if [ "${BRAVE_YOUTUBE_SOURCE_ONLY:-0}" != "1" ]; then
+  dispatch
+fi

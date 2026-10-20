@@ -1,0 +1,176 @@
+{
+  "bin/brave-youtube-cdp": {
+    "source_sha256": "af9a2213ab6734c84641fd562323b8ca9c814481e0d5252dfaeed1181f7306ea",
+    "destination_sha256": "af9a2213ab6734c84641fd562323b8ca9c814481e0d5252dfaeed1181f7306ea",
+    "mode": "0o755",
+    "adaptation": "byte-identical"
+  },
+  "bin/brave-youtube-session": {
+    "source_sha256": "24be0ba526eea3ae04172fc2e31d1554cd77f5634d2b291401e202b6d61b43be",
+    "destination_sha256": "24be0ba526eea3ae04172fc2e31d1554cd77f5634d2b291401e202b6d61b43be",
+    "mode": "0o755",
+    "adaptation": "byte-identical"
+  },
+  "bin/clear-new-tab-sync": {
+    "source_sha256": "3b07f82f62f893a3231d2d00ef559b485c349026f999f397555dbfe9816bceb5",
+    "destination_sha256": "e24566ca833ef447cc849de4a4694bce22f53c32d58e7e85eeab13dfc91c0fc6",
+    "mode": "0o755",
+    "adaptation": "durable-authority-consumer"
+  },
+  "bin/cnt-wallpaper-gallery": {
+    "source_sha256": "65024df58eb0a6abb905c7086a1213467cec384e3b328485787a150402fa17dc",
+    "destination_sha256": "74ca3c838f0b0d032ebb84885a8b2a40c7cef74ac2f1dcd2c86b63d43994ea85",
+    "mode": "0o755",
+    "adaptation": "tracked-runtime-selection"
+  },
+  "bin/shared-images-db-audit": {
+    "source_sha256": "da081a99f8768d7f69fdd2450025591c9a27d469189769593cb695923984247f",
+    "destination_sha256": "da081a99f8768d7f69fdd2450025591c9a27d469189769593cb695923984247f",
+    "mode": "0o755",
+    "adaptation": "byte-identical"
+  },
+  "bin/shared-images-promote-original": {
+    "source_sha256": "716d1c6cc4195d9073926328763a7ae423ac9169f68aa4395d7e1eab0fb37aac",
+    "destination_sha256": "716d1c6cc4195d9073926328763a7ae423ac9169f68aa4395d7e1eab0fb37aac",
+    "mode": "0o755",
+    "adaptation": "byte-identical"
+  },
+  "bin/shared-images-rclone-sync": {
+    "source_sha256": "96cb6f95c84960fb37c28aa6eb24cf3156e466d8ab167a2a339a1d9083187e9e",
+    "destination_sha256": "96cb6f95c84960fb37c28aa6eb24cf3156e466d8ab167a2a339a1d9083187e9e",
+    "mode": "0o755",
+    "adaptation": "byte-identical"
+  },
+  "bin/shared-images-refresh-artist-links": {
+    "source_sha256": "0cc9353beb367a30b80efe5a880aba084a6efa0b0cde4edac021bde767197c77",
+    "destination_sha256": "0cc9353beb367a30b80efe5a880aba084a6efa0b0cde4edac021bde767197c77",
+    "mode": "0o755",
+    "adaptation": "byte-identical"
+  },
+  "bin/shared-images-rehash": {
+    "source_sha256": "881db12cbba8edcfdd73490fa936be233933e68ee7d4117da67f7a536ba431d5",
+    "destination_sha256": "881db12cbba8edcfdd73490fa936be233933e68ee7d4117da67f7a536ba431d5",
+    "mode": "0o755",
+    "adaptation": "byte-identical"
+  },
+  "bin/shared-images-workflow-layout": {
+    "source_sha256": "325fec09bab4c30f004b1fd59b26a21b206861194edfc76b9f9d12e21f7b8104",
+    "destination_sha256": "325fec09bab4c30f004b1fd59b26a21b206861194edfc76b9f9d12e21f7b8104",
+    "mode": "0o755",
+    "adaptation": "byte-identical"
+  },
+  "libexec/brave-youtube/allocate-debug-port.py": {
+    "source_sha256": "8de78df06c827b24ceb6a83bcf2a8ff56898ef3304497158e910664ffbdd5c14",
+    "destination_sha256": "8de78df06c827b24ceb6a83bcf2a8ff56898ef3304497158e910664ffbdd5c14",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  },
+  "libexec/brave-youtube/display-notification.applescript": {
+    "source_sha256": "7e69fd191486f1ae3d1355a260ef3037bad376b8997383e513d714f8fac7f57c",
+    "destination_sha256": "7e69fd191486f1ae3d1355a260ef3037bad376b8997383e513d714f8fac7f57c",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  },
+  "libexec/brave-youtube/first-field.awk": {
+    "source_sha256": "2f733073212134d40c1551340761e85d74c97fba1330ee481739940af242eb21",
+    "destination_sha256": "2f733073212134d40c1551340761e85d74c97fba1330ee481739940af242eb21",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  },
+  "libexec/brave-youtube/generate-icon.py": {
+    "source_sha256": "96b3e0cb5e4649780e09a1fa10ea2b7c126887a6bf1be0351d7df4af541434f3",
+    "destination_sha256": "96b3e0cb5e4649780e09a1fa10ea2b7c126887a6bf1be0351d7df4af541434f3",
+    "mode": "0o755",
+    "adaptation": "byte-identical"
+  },
+  "libexec/brave-youtube/generate-theme-assets.py": {
+    "source_sha256": "a4172d72002a146ac265ff81600fabce0a4606db284839e846e33cd3292c3138",
+    "destination_sha256": "a4172d72002a146ac265ff81600fabce0a4606db284839e846e33cd3292c3138",
+    "mode": "0o755",
+    "adaptation": "byte-identical"
+  },
+  "libexec/brave-youtube/pmset-battery-percent.awk": {
+    "source_sha256": "de02c21ea2f44979ef675111456c2ead3e62832e9f6c4fdcffc840c18cc0fb4c",
+    "destination_sha256": "de02c21ea2f44979ef675111456c2ead3e62832e9f6c4fdcffc840c18cc0fb4c",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  },
+  "libexec/brave-youtube/pmset-power-source.awk": {
+    "source_sha256": "db6f2b387e07987cc1705d9e7542f720f5ea38a11ac0f3c140a1ea46034f48cc",
+    "destination_sha256": "db6f2b387e07987cc1705d9e7542f720f5ea38a11ac0f3c140a1ea46034f48cc",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  },
+  "libexec/brave-youtube/pmset-sleep-disabled.awk": {
+    "source_sha256": "c7432dac099571af4f909efcd58de046a7dbfe7166d3a58aa681bae2581f6392",
+    "destination_sha256": "c7432dac099571af4f909efcd58de046a7dbfe7166d3a58aa681bae2581f6392",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  },
+  "libexec/brave-youtube/profile-extension-audit.py": {
+    "source_sha256": "f35fd1de6b593b20919ce9f50a4c24ad706466826dcd3e14df3cfcb148e88b77",
+    "destination_sha256": "f35fd1de6b593b20919ce9f50a4c24ad706466826dcd3e14df3cfcb148e88b77",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  },
+  "libexec/brave-youtube/write-launch-plist.py": {
+    "source_sha256": "410c2a9c8c219b389df11c14cac067f7d68d42da73c77b07dd24e5c9322b39f6",
+    "destination_sha256": "410c2a9c8c219b389df11c14cac067f7d68d42da73c77b07dd24e5c9322b39f6",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  },
+  "libexec/clear-new-tab/brave-youtube-consumer.py": {
+    "source_sha256": null,
+    "destination_sha256": "a001f816f5a4bf714098de49fae26d37b088e57174e43ac4b33c358be7df60cb",
+    "mode": "0o644",
+    "adaptation": "destination-origin"
+  },
+  "libexec/clear-new-tab/durable_state.py": {
+    "source_sha256": null,
+    "destination_sha256": "7a1dd704988088c22d1502b72318183960c8f70e3bde6e9908ec42255c653eea",
+    "mode": "0o644",
+    "adaptation": "destination-origin"
+  },
+  "libexec/clear-new-tab/guarded_recovery.py": {
+    "source_sha256": null,
+    "destination_sha256": "1cf34e0edbbaee0ceb5e9ad80284abbb2f84c813b3b853766954254d950b8053",
+    "mode": "0o644",
+    "adaptation": "destination-origin"
+  },
+  "libexec/shared-images/artist_links.py": {
+    "source_sha256": "4d5fe60d84105e17cd030c9fc9313c32171d6483094f6804f017b89b54ce3ac7",
+    "destination_sha256": "4d5fe60d84105e17cd030c9fc9313c32171d6483094f6804f017b89b54ce3ac7",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  },
+  "libexec/shared-images/db_audit.py": {
+    "source_sha256": "40d25088e78b6689b9f3c0c83e968811ff4c90d721ec5ca98b562ca0bcaec47b",
+    "destination_sha256": "40d25088e78b6689b9f3c0c83e968811ff4c90d721ec5ca98b562ca0bcaec47b",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  },
+  "libexec/shared-images/promote_original.py": {
+    "source_sha256": "7ccd3c88c5b9ff740d2301550a686ecf9e0085713ca9a7f0a8cdd613987522e7",
+    "destination_sha256": "7ccd3c88c5b9ff740d2301550a686ecf9e0085713ca9a7f0a8cdd613987522e7",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  },
+  "libexec/shared-images/rehash.py": {
+    "source_sha256": "cefcc86d2141ea3b5742f601eafe7a5a5ccee0f6ecbf64c610b3ed5a1fcfef42",
+    "destination_sha256": "cefcc86d2141ea3b5742f601eafe7a5a5ccee0f6ecbf64c610b3ed5a1fcfef42",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  },
+  "libexec/shared-images/shared_images_lib.py": {
+    "source_sha256": "b00972ba6d1e768b329b156677843e55287bf041e96214ef3c2234f7df766e34",
+    "destination_sha256": "b00972ba6d1e768b329b156677843e55287bf041e96214ef3c2234f7df766e34",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  },
+  "libexec/shared-images/workflow_layout.py": {
+    "source_sha256": "74e029e3ac50ebebd44f8b658b2141e21a41e4fd80816479b70dbdf3e8b7a7b1",
+    "destination_sha256": "74e029e3ac50ebebd44f8b658b2141e21a41e4fd80816479b70dbdf3e8b7a7b1",
+    "mode": "0o644",
+    "adaptation": "byte-identical"
+  }
+}

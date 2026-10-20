@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+session="/Users/@USER_NAME@/.local/nbin/dinas/brave-youtube-session"
+self_dir="$(cd "$(/usr/bin/dirname "$0")" && /bin/pwd -P)"
+internal=0
+args=()
+
+for arg in "$@"; do
+  case "$arg" in
+    --brave-youtube-internal)
+      internal=1
+      ;;
+    -psn_*)
+      ;;
+    *)
+      args+=("$arg")
+      ;;
+  esac
+done
+
+if [ "$internal" = "1" ]; then
+  exec "$self_dir/Brave YouTube.bin" "${args[@]}"
+fi
+
+"$session" start >/dev/null 2>&1

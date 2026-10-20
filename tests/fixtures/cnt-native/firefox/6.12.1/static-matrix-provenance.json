@@ -1,0 +1,932 @@
+{
+  "schema": "bux-r6-firefox-static-matrix-provenance-v1",
+  "capture": {
+    "extension_id": "clear-new-tab@loftyshaky",
+    "version": "6.12.1",
+    "manifest_version": 3,
+    "xpi_sha256": "bd6ed1160739fb475e4f13c9f43885436f9a5ef6395be8ca514773e77ae9cf9f",
+    "member_count": 129,
+    "member_digests": "metadata.json native_member_sha256 (21 members, all re-verified)"
+  },
+  "method": {
+    "access": "Read-only, in memory with Python zipfile after the file SHA-256 matched. Never extracted, executed, copied into source/outbox/Nix, or rewritten.",
+    "binding_authority": "Parent re-verification at member and offset is the only binding authority. Worker reports were inputs.",
+    "worker_disclosure": "External Gemini leaf workers read the capture contents in memory: two plan-stage jobs and one work-stage job (r6-static-seams). Each verified the SHA-256 first. No worker output is binding. SRICH-REPAIR1 plan stage: two further read-only Gemini leaf jobs (worker-srich-repair1-plan-static-inputs, worker-srich-repair1-plan-static-context) read the capture in memory after the SHA-256 check; every ui.event/validation/custom-code/scheduler fact added in that phase was re-read by the parent at member and offset. No work-stage worker was used. The closeout-stage fact ui.task_background_id was read by the parent directly (no worker). SRICH-REPAIR2 plan stage: three read-only Gemini leaf jobs (static-render-identity, static-export-order, static-move-rank) read the capture in memory after the SHA-256 check, and one Luna job stopped on quota before any work and was not retried; every fact added in REPAIR2 was re-read by the work-stage parent at member and offset, with no work-stage worker. MALFORMED-D-PREP1 plan stage: one read-only Gemini leaf job (malformed-d-static-report-codes) was launched to audit restore-path report codes, produced no output and was abandoned with cleanup proven; nothing from it is used. The report.* and restore.report_route facts were read by the work-stage parent directly, in memory after the SHA-256 check, with no work-stage worker. The closeout-stage fact report.ribbon_visibility was read by the closeout parent directly, in memory after the SHA-256 check, with no worker. MALFORMED-D-REPORT-GATE1: the observability.* facts were read by the work-stage parent directly, in memory after the SHA-256 check; no worker read the capture. MULTIPART-B-PREP1: the backup.partition_units, backup.partition_header, ui.upload_limits and restore.later_parts facts, and the re-verification of every backup.* and restore.* fact the multipart cases rely on, were read by the work-stage parent directly, in memory after the SHA-256 check; no worker read the capture.",
+    "offsets": "Approximate character offsets in the decoded member; no code excerpts are recorded here.",
+    "statuses": {
+      "VERIFIED": "parent confirmed the cited fact at the member/offset",
+      "CORRECTED": "parent found the reported fact inaccurate; the value here is the parent reading",
+      "UNVERIFIED": "not confirmed; a case depending on it is BLOCKED_STATIC_UNVERIFIED or carries no prediction"
+    }
+  },
+  "facts": {
+    "backup.threshold_default": {
+      "member": "chunks/internal.mjs",
+      "offset": 127532,
+      "status": "VERIFIED",
+      "value": 419430400
+    },
+    "backup.threshold_ui_range": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1317247,
+      "status": "VERIFIED",
+      "value": [
+        52428800,
+        419430400
+      ]
+    },
+    "backup.threshold_commit": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1313892,
+      "status": "VERIFIED",
+      "value": "text input onInput; saved only when the value passes range validation; coerced to a number"
+    },
+    "backup.partition": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1293893,
+      "status": "CORRECTED",
+      "value": "b += g; split when b + g + header + footer >= threshold (new chunk counted twice); header is always the Part 1 settings header length; on a split the accumulated chunks are emitted without the new chunk, which is carried with its leading comma stripped and b resets to 0; the last chunk is always appended to the current part"
+    },
+    "backup.partition_first_split": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1295187,
+      "status": "CORRECTED",
+      "value": "the leading-comma flag becomes false only after a non-split append, so a split on the first chunk emits an empty Part 1 and the next appended chunk has no separator (predicted malformed part)"
+    },
+    "backup.partition_units": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1295322,
+      "related_offsets": {
+        "chunks/internal3.mjs": [
+          1294486
+        ],
+        "chunks/internal2.mjs": [
+          148456
+        ]
+      },
+      "status": "VERIFIED",
+      "value": "every size in the partition predicate is a UTF-8 byte length (TextEncoder): each chunk string including its leading comma, the Part 1 settings header and the two-byte footer; each part is downloaded as a Blob of that same string, so the file bytes are its UTF-8 encoding and a byte simulation of the downloaded parts is exact for any content, not only ASCII",
+      "member_sha256": "a751464b910f968d1514b6e4eb2438be44a0c59b81067efee063f8726ca73efa"
+    },
+    "backup.partition_header": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1294386,
+      "related_offsets": {
+        "chunks/internal3.mjs": [
+          1294121,
+          1313892
+        ]
+      },
+      "status": "VERIFIED",
+      "value": "Part 1 is the settings header {\"settings\":{\"prefs\":<prefs>},\"custom_code\":<code>,\"chunks\":[ then chunks then the footer ]}; later parts use {\"chunks\":[ and the same footer; <prefs> is the JSON serialization of a copy of the in-memory prefs, so the threshold the export reads at its start (one_backup_file_size_in_bytes, coerced to a number on commit) appears in Part 1 as plain decimal digits",
+      "member_sha256": "a751464b910f968d1514b6e4eb2438be44a0c59b81067efee063f8726ca73efa"
+    },
+    "backup.partition_split_notice": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1293986,
+      "status": "VERIFIED",
+      "value": "each split raises and silently reports error code cnt_1436 through show_err_ribbon with silent:true"
+    },
+    "report.cnt_1436": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1293968,
+      "status": "VERIFIED",
+      "value": {
+        "code": "cnt_1436",
+        "silent": true,
+        "route": "GLOBAL_SHOW_ERR_RIBBON",
+        "stage": "export",
+        "condition": "the export partition split notice: the split predicate calls show_err_ribbon by its global name with silent true (same site as backup.partition_split_notice)"
+      }
+    },
+    "report.local_route": {
+      "member": "chunks/internal2.mjs",
+      "offset": 173178,
+      "status": "VERIFIED",
+      "value": "globalThis.err and globalThis.err_async report a caught error through the module-local error ribbon object, not through the globalThis.show_err_ribbon binding, with silent false by default; the chunks/internal.mjs copy (offset 23768) has the same module-local shape"
+    },
+    "report.ribbon_visibility": {
+      "member": "chunks/internal.mjs",
+      "offset": 48236,
+      "status": "VERIFIED",
+      "related_offsets": {
+        "chunks/internal2.mjs": [
+          167429,
+          172330,
+          173178,
+          173548
+        ]
+      },
+      "value": "the module-local error ribbon object used by globalThis.err and globalThis.err_async is the same object globalThis.show_err_ribbon delegates to, so a restore-path report renders through the ui.error_ribbon path; its base show makes the ribbon visible only when neither the silent option, a truthy silent property on the caught error, nor the instance-wide prevent_subsequent_errors state is set, and the restore.report_route call sites pass no options (silent false); whether any restore-path throw carries a silent property was not audited"
+    },
+    "backup.part_contents": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1294366,
+      "status": "VERIFIED",
+      "value": "Part 1 = settings.prefs + custom_code + chunks; later parts = chunks only; chunk = data, thumbnail, file, tasks"
+    },
+    "backup.exported_theme_id": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1294334,
+      "status": "CORRECTED",
+      "value": "export blanks prefs.id_of_last_installed_theme in the exported copy (reported as a restore-side reset)"
+    },
+    "backup.filename": {
+      "member": "chunks/internal2.mjs",
+      "offset": 148948,
+      "status": "VERIFIED",
+      "value": "<manifest name> back up <locale date> Part <n>.json; this download path always passes a part index"
+    },
+    "backup.download_boundary": {
+      "member": "chunks/internal2.mjs",
+      "offset": 148513,
+      "status": "VERIFIED",
+      "value": "Blob type application/octet-stream, URL.createObjectURL, anchor download attribute, anchor click"
+    },
+    "restore.delete_before_parse": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1295867,
+      "status": "VERIFIED",
+      "value": "delete_all_backgrounds is requested before sorting, parsing or validation"
+    },
+    "restore.deletion_on_transition_end": {
+      "member": "chunks/internal3.mjs",
+      "offset": 32708,
+      "status": "VERIFIED",
+      "value": "delete_all_backgrounds only hides the backgrounds section; tables and tasks are cleared in the section_content transition-end callback"
+    },
+    "restore.sort": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1295963,
+      "status": "VERIFIED",
+      "value": "files sorted by /Part (\\d+)/ number; unmatched names compare equal"
+    },
+    "restore.part1_gate": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1296083,
+      "status": "VERIFIED",
+      "value": "restore proceeds only if some file name includes 'Part 1.json'"
+    },
+    "restore.parse_all_first": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1296252,
+      "status": "VERIFIED",
+      "value": "every selected file is parsed (chunks counted) before any is applied; no continuity or duplicate check"
+    },
+    "restore.later_parts": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1296509,
+      "related_offsets": {
+        "chunks/internal3.mjs": [
+          1296642,
+          1296783,
+          1297799
+        ]
+      },
+      "status": "VERIFIED",
+      "value": "files are applied one at a time in sorted order; only a file whose name includes Part 1.json supplies settings and custom code and clears the background and task tables; every file contributes its chunks, merged after the missing-id filter, so a repeated part adds no row already present",
+      "member_sha256": "a751464b910f968d1514b6e4eb2438be44a0c59b81067efee063f8726ca73efa"
+    },
+    "restore.type_gate": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1296589,
+      "status": "VERIFIED",
+      "value": "each file must have type application/json"
+    },
+    "restore.part1_clears_tables": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1298619,
+      "status": "VERIFIED",
+      "value": "Part 1 resets custom code, clears background and task tables, saves custom_code"
+    },
+    "restore.settings_replace": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1299106,
+      "status": "VERIFIED",
+      "value": "settings sent with replace:true, transform:true, transform_force:true"
+    },
+    "restore.apply_unchanged_prefs": {
+      "member": "chunks/internal.mjs",
+      "offset": 130294,
+      "status": "CORRECTED",
+      "value": [
+        "current_section",
+        "color_help_is_visible",
+        "clipboard_read_permission",
+        "install_help_is_visible"
+      ]
+    },
+    "restore.no_version_gate": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1299106,
+      "status": "VERIFIED",
+      "value": "no version comparison before applying; schema transform forced"
+    },
+    "restore.report_route": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1295642,
+      "status": "VERIFIED",
+      "value": "restore_back_up is wrapped by err_async (cnt_1278) and its per-file read and parse by err_async (cnt_1556); the name sort (cnt_1555), the Part 1 gate test (cnt_1410) and the apply steps (cnt_1419, cnt_1418, cnt_1560, cnt_1375) by err or err_async; no restore-path site calls show_err_ribbon by name, so a restore-path report is visible to the page only as the error ribbon"
+    },
+    "merge.id_filter": {
+      "member": "chunks/internal3.mjs",
+      "offset": 37523,
+      "status": "VERIFIED",
+      "value": "restored backgrounds, thumbnails and files are filtered against ids in the in-memory list"
+    },
+    "merge.uniq_theme_id": {
+      "member": "chunks/internal3.mjs",
+      "offset": 37151,
+      "status": "VERIFIED",
+      "value": "merge de-duplicates only entries with a theme_id, keyed by theme_id; others are kept"
+    },
+    "merge.sort_no_renumber": {
+      "member": "chunks/internal3.mjs",
+      "offset": 37151,
+      "status": "VERIFIED",
+      "value": "merge sorts by i ascending and does not renumber"
+    },
+    "schema.keys_to_remove": {
+      "member": "chunks/internal.mjs",
+      "offset": 127191,
+      "status": "VERIFIED",
+      "value": [
+        "upload_background",
+        "options_page_tab_id",
+        "last_version"
+      ]
+    },
+    "schema.unknown_prefs": {
+      "member": "chunks/internal.mjs",
+      "offset": 127191,
+      "status": "UNVERIFIED",
+      "value": "worker reported unknown pref keys preserved; Schema.transform internals not confirmed; no prediction"
+    },
+    "schema.unknown_background_keys": {
+      "member": "chunks/internal3.mjs",
+      "offset": 37844,
+      "status": "UNVERIFIED",
+      "value": "only video_speed is migrated per background; retention of other keys not confirmed; no prediction"
+    },
+    "ui.upload_input": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1300636,
+      "status": "VERIFIED",
+      "value": ".input_w.upload_box.upload_background input[type=file]"
+    },
+    "ui.upload_ranks": {
+      "member": "chunks/internal.mjs",
+      "offset": 100046,
+      "status": "VERIFIED",
+      "value": "new rank = last rank + 1-based index (BigNumber string); id = time + random"
+    },
+    "ui.upload_limits": {
+      "member": "chunks/internal.mjs",
+      "offset": 100131,
+      "related_offsets": {
+        "chunks/internal.mjs": [
+          100708
+        ],
+        "chunks/internal3.mjs": [
+          1295069
+        ]
+      },
+      "status": "VERIFIED",
+      "value": "on the settings page each selected file is stored as the selected File object itself (no re-encoding) and the upload loop has no file-size check; the export base64-encodes that stored blob, so an exported row carries the uploaded bytes",
+      "member_sha256": "53b7a1cbe81b0c3263c5f250afc2a152dc55244b88e54480f3b0bb183f2def8c"
+    },
+    "ui.restore_input": {
+      "member": "chunks/internal2.mjs",
+      "offset": 147382,
+      "status": "VERIFIED",
+      "value": "input.file.back_up (accept .json, multiple)"
+    },
+    "ui.download_button": {
+      "member": "chunks/internal2.mjs",
+      "offset": 147167,
+      "status": "VERIFIED",
+      "value": ".btn_w.download_back_up button.btn"
+    },
+    "ui.button_dom": {
+      "member": "chunks/internal2.mjs",
+      "offset": 70699,
+      "status": "VERIFIED",
+      "value": "span.btn_w.text.<name> > button.btn.text"
+    },
+    "ui.select_dom": {
+      "member": "chunks/internal2.mjs",
+      "offset": 78943,
+      "status": "VERIFIED",
+      "value": "select[name=<name>] option[value=<val>]; option val defaults to its name"
+    },
+    "ui.text_dom": {
+      "member": "chunks/internal2.mjs",
+      "offset": 82016,
+      "status": "VERIFIED",
+      "value": "input[name=<name>] with onInput"
+    },
+    "ui.checkbox_dom": {
+      "member": "chunks/internal2.mjs",
+      "offset": 71138,
+      "status": "VERIFIED",
+      "value": ".input_w.checkbox.<name> .box inside the wrapping label"
+    },
+    "ui.background_item": {
+      "member": "chunks/internal3.mjs",
+      "offset": 12637,
+      "status": "VERIFIED",
+      "value": ".sections.custom.backgrounds .scrollable .ui"
+    },
+    "ui.background_delete": {
+      "member": "chunks/internal3.mjs",
+      "offset": 11915,
+      "status": "VERIFIED",
+      "value": ".delete_background_btn inside the item; no confirm dialog"
+    },
+    "ui.background_actions": {
+      "member": "chunks/internal3.mjs",
+      "offset": 9646,
+      "status": "VERIFIED",
+      "value": ".overlay_item.btn.actions then .btn_w.move_background button"
+    },
+    "ui.move_prompt": {
+      "member": "chunks/internal3.mjs",
+      "offset": 46146,
+      "status": "VERIFIED",
+      "value": "window.prompt takes a 1-based position; the item is dropped beside the item at that position"
+    },
+    "ui.move_rank": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1204262,
+      "status": "VERIFIED",
+      "value": "new rank is the BigNumber midpoint of the neighbours (plus/minus 1 at the ends)"
+    },
+    "ui.background_select": {
+      "member": "chunks/internal3.mjs",
+      "offset": 41211,
+      "status": "VERIFIED",
+      "value": "clicking .ui selects the background; while the scheduler is open it sets the task background instead"
+    },
+    "ui.settings_context": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1314765,
+      "status": "VERIFIED",
+      "value": "select[name=settings_context]: global runs the global-selection reaction; selected_background only shows a notification and resets data.ui.settings_context to global. Clicking a background enters the selected_background context (offset 4900); in that context background_size/position/repeat changes go to the selected background, otherwise to global prefs (offset 8016). Closeout parent verification."
+    },
+    "ui.section_content": {
+      "member": "chunks/internal3.mjs",
+      "offset": 54130,
+      "status": "VERIFIED",
+      "value": ".sections.custom.backgrounds .section_content with fade classes opacity_0/opacity_1"
+    },
+    "ui.fade_classes": {
+      "member": "chunks/internal2.mjs",
+      "offset": 152527,
+      "status": "VERIFIED",
+      "value": [
+        "opacity_0",
+        "opacity_1"
+      ]
+    },
+    "ui.protecting_screen": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1214363,
+      "status": "VERIFIED",
+      "value": ".protecting_screen, class none when hidden"
+    },
+    "ui.progress": {
+      "member": "chunks/internal2.mjs",
+      "offset": 179775,
+      "status": "VERIFIED",
+      "value": ".progress_w"
+    },
+    "ui.readiness": {
+      "member": "chunks/internal2.mjs",
+      "offset": 160676,
+      "status": "VERIFIED",
+      "value": "link.hidden_roots_link_* removed from head; loading screen root shadow .loading_screen has class none"
+    },
+    "ui.error_ribbon": {
+      "member": "chunks/internal2.mjs",
+      "offset": 172330,
+      "status": "VERIFIED",
+      "value": "globalThis.show_err_ribbon(error, code, options); rendered in an open shadow root of div[class^=root][class*=error] .main; auto-hides"
+    },
+    "ui.shadow_mode": {
+      "member": "chunks/internal2.mjs",
+      "offset": 177035,
+      "status": "VERIFIED",
+      "value": "open"
+    },
+    "ui.custom_code": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1307158,
+      "status": "VERIFIED",
+      "value": "CodeMirror editors (html, css, js order as the accepted R1 adapter); custom_code button opens them"
+    },
+    "ui.scheduler": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1279875,
+      "status": "VERIFIED",
+      "value": "open_scheduler (mode scheduled only); inputs year (text), day_of_the_week, month, day_of_the_month (selects), time (text HH:MM:SS); add_new_task; close_scheduler"
+    },
+    "ui.task_fields": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1285950,
+      "status": "VERIFIED",
+      "value": [
+        "id",
+        "i",
+        "background_id",
+        "year",
+        "day_of_the_week",
+        "month",
+        "day_of_the_month",
+        "time"
+      ]
+    },
+    "ui.day_of_the_month_values": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1279100,
+      "status": "VERIFIED",
+      "value": "31 options, value = zero-based index string"
+    },
+    "ui.options_page_theme": {
+      "member": "chunks/internal2.mjs",
+      "offset": 145500,
+      "status": "VERIFIED",
+      "value": [
+        "light",
+        "dark",
+        "very_dark",
+        "clover",
+        "aqua",
+        "lavender",
+        "blaze",
+        "ruby"
+      ]
+    },
+    "ui.visibility_conditions": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1301793,
+      "status": "VERIFIED",
+      "value": "slideshow, background_change_effect, slide_direction visible/enabled in scheduled mode; color_type, shuffle and interval not"
+    },
+    "defaults.prefs": {
+      "member": "chunks/internal.mjs",
+      "offset": 128667,
+      "status": "VERIFIED",
+      "value": {
+        "options_page_theme": "lavender",
+        "mode": "one_background",
+        "slideshow": false,
+        "background_change_effect": "crossfade",
+        "slide_direction": "random",
+        "background_size": "dont_resize",
+        "background_position": "center",
+        "background_repeat": "no_repeat",
+        "home_btn_is_visible": false,
+        "home_btn_position": "right_top",
+        "one_backup_file_size_in_bytes": 419430400,
+        "transition_duration": 200,
+        "backgrounds_per_page": 200
+      }
+    },
+    "gating.firefox_theme": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1300300,
+      "status": "VERIFIED",
+      "value": "theme_background mode, load_theme_background, link_to_theme_img and keep_old_theme_backgrounds are Chrome/Edge only"
+    },
+    "gating.optional_permissions": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1207212,
+      "status": "VERIFIED",
+      "value": [
+        "paste_btn_is_visible",
+        "allow_downloading_img_by_link",
+        "clipboard_read_permission"
+      ]
+    },
+    "gating.backgrounds_per_page": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1209423,
+      "status": "VERIFIED",
+      "value": [
+        1,
+        10000000
+      ]
+    },
+    "ui.data_global": {
+      "member": "chunks/internal2.mjs",
+      "offset": 61582,
+      "status": "VERIFIED",
+      "value": "globalThis.data is the page MobX observable; data.settings.prefs holds prefs and data.ui (reset to an empty object at settings init, internal.mjs 107063) holds in-page UI values"
+    },
+    "ui.event.select": {
+      "member": "chunks/internal2.mjs",
+      "offset": 79243,
+      "status": "VERIFIED",
+      "value": "select[name] is React-controlled from the input accessor; its onChange (the change event) calls the generic change, which writes event.target.value synchronously to data.settings.prefs[name], or to the data path of val_accessor, then runs the input event callback (offset 129430)"
+    },
+    "ui.event.checkbox": {
+      "member": "chunks/internal2.mjs",
+      "offset": 71463,
+      "status": "VERIFIED",
+      "value": "the checkbox input sits in a wrapping label with the .box span after it; the input onChange (offset 71326) writes event.target.checked through the generic change; .box has no handler of its own, so a .box click commits once through label activation"
+    },
+    "ui.event.text": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1313784,
+      "status": "VERIFIED",
+      "value": "onInput (internal2.mjs 82488) writes the raw input string to the page pref synchronously; the settings callback then validates it and, only when valid, coerces one_backup_file_size_in_bytes to a number, writes it back to data.settings.prefs and persists; year and time stay strings; invalid text stays in the page pref with warn state and is not persisted; no debounce on this path. A script property write fires no input event"
+    },
+    "ui.validation.threshold": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1317247,
+      "status": "VERIFIED",
+      "value": "string values only; invalid when below 52428800 or above 419430400 after numeric comparison; an empty string is invalid"
+    },
+    "ui.validation.year": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1317403,
+      "status": "VERIFIED",
+      "value": "valid when empty, or four digits starting with 2 and not below the current calendar year"
+    },
+    "ui.validation.time": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1317479,
+      "status": "VERIFIED",
+      "value": "valid when empty, or strict HH:MM:SS with hours 00-23 and minutes/seconds 00-59"
+    },
+    "ui.val_accessor": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1304725,
+      "status": "VERIFIED",
+      "value": [
+        "settings_context",
+        "background_size",
+        "background_position",
+        "background_repeat"
+      ]
+    },
+    "ui.override_routing": {
+      "member": "chunks/internal3.mjs",
+      "offset": 7789,
+      "status": "VERIFIED",
+      "value": "background_size/position/repeat changes write data.settings.prefs and persist only when data.ui.settings_context is global; when it is selected_background they go to the selected background (IndexedDB update); in any other context nothing is written"
+    },
+    "ui.background_click": {
+      "member": "chunks/internal3.mjs",
+      "offset": 11375,
+      "status": "VERIFIED",
+      "value": ".ui onClick selects the background (offset 41009): unless a drag lock is set or the scheduler is open, it enters selected_background and copies the background presentation into data.ui; with the scheduler open it sets data.ui.background_id for the task. The drag lock needs mousedown plus a movement past the threshold (1199987) and document mouseup clears it (1206178). Delete and actions buttons stop propagation (30793, 27771), so they never select"
+    },
+    "ui.global_return": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1314755,
+      "status": "VERIFIED",
+      "value": "choosing settings_context global runs the global-selection reaction (offset 4019): context global and data.ui background presentation values restored from prefs; settings init runs the same reaction (1205729)"
+    },
+    "ui.control_wrapper": {
+      "member": "chunks/internal2.mjs",
+      "offset": 73759,
+      "status": "VERIFIED",
+      "value": "each control renders inside div.input_item with class is_disabled when not enabled or parent-disabled (is_enabled_cls 107074); settings_css.css gives is_disabled opacity 0.3 and pointer-events none; the text wrapper span.input_w carries is_in_warn_state (128955)"
+    },
+    "ui.visibility_enablement": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1303480,
+      "status": "VERIFIED",
+      "value": "slideshow visible for mode multiple_backgrounds, random_solid_color or scheduled; background_change_effect and slide_direction are children of slideshow (parent-disabled until it is checked), slide_direction also needs background_change_effect slide; home_btn_position is a child of home_btn_is_visible (1306847); parent state is refreshed synchronously inside the change callback"
+    },
+    "ui.custom_code_open": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1307158,
+      "status": "VERIFIED",
+      "value": "the custom_code button makes the editor overlay (.code_editor, offset 277209) visible and, while visible, resets every editor to the stored value (279747); the three editors are created at settings render in html, css, js order"
+    },
+    "ui.custom_code_gate": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1195196,
+      "status": "VERIFIED",
+      "value": "one editor change counter shared by all editors: a change is saved only once three earlier changes were counted; the save is one lodash debounce of 250 ms shared by all editor types (offset 1198160), so rapid changes to different editors save only the last"
+    },
+    "ui.custom_code_close": {
+      "member": "chunks/internal3.mjs",
+      "offset": 279444,
+      "status": "VERIFIED",
+      "value": "the overlay top control close_code_editor (span.btn_w icon button) hides the editor overlay"
+    },
+    "ui.scheduler_store": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1285857,
+      "status": "VERIFIED",
+      "value": "year, time, day_of_the_week, month and day_of_the_month are ordinary data.settings.prefs values (inputs at 1279197); adding a task copies them and data.ui.background_id into the new task and does not reset them"
+    },
+    "ui.add_task_enablement": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1287163,
+      "status": "VERIFIED",
+      "value": "add_new_task is enabled asynchronously after each scheduler change or background click: the task background preview must exist, some scheduler field must be non-empty, and no scheduler field may be in warn state"
+    },
+    "ui.task_background_id": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1285561,
+      "status": "VERIFIED",
+      "value": "data.ui starts empty on page load (chunks/internal.mjs 107091), so the task background id is unset; set_background_id is its only setter and is called only by the background select handler while the scheduler is open (41191), with the clicked background's id; it is reset only by delete all tasks (1283019), deletion of that background (1285795) and restore (1299284). Adding a task does not reset it, so a click on a different background must change it"
+    },
+    "ui.background_identity": {
+      "member": "chunks/internal3.mjs",
+      "offset": 11375,
+      "status": "VERIFIED",
+      "related_offsets": {
+        "chunks/client.mjs": [
+          89600,
+          172090,
+          252880
+        ],
+        "chunks/internal3.mjs": [
+          9940,
+          35764,
+          41189
+        ]
+      },
+      "value": "each rendered .ui is inside the background item component (9940), whose onClick passes that component's own background prop to the select handler; with the scheduler open the handler sets data.ui.background_id to that prop's id (41189). The list keys each item by its background id (35764), so a DOM item and its component fiber belong to one background. React 19.2.7 (client.mjs 252880) stores a host fiber on the node under the __reactFiber$ prefix (89600, 172090); it may be the alternate copy, whose return chain reaches the same keyed item"
+    },
+    "ui.background_render_order": {
+      "member": "chunks/internal3.mjs",
+      "offset": 12818,
+      "status": "VERIFIED",
+      "related_offsets": {
+        "chunks/internal.mjs": [
+          100073
+        ],
+        "chunks/internal3.mjs": [
+          1211418,
+          37030,
+          1204895
+        ]
+      },
+      "value": "the backgrounds section renders one .ui item per entry of the current page slice, in slice order; the slice (1211418) is taken from the in-memory background collection, which is sorted by rank at load (37030) and after a move (1204895), and an upload appends ranks after the last rank (internal.mjs 100073), so the rendered order is ascending rank; 200 per page by default"
+    },
+    "ui.upload_first_rank": {
+      "member": "chunks/internal.mjs",
+      "offset": 230753,
+      "status": "VERIFIED",
+      "value": "the last-rank lookup returns 0 for an empty collection, so an upload into an empty list gets ranks 1..n (offset 100073)"
+    },
+    "ui.move_neighbours": {
+      "member": "chunks/internal3.mjs",
+      "offset": 46146,
+      "status": "VERIFIED",
+      "related_offsets": {
+        "chunks/internal3.mjs": [
+          1204272,
+          1204895
+        ]
+      },
+      "value": "the move prompt with a position p before the moved item drops it left of the item at p; the drop (1204272) sets the moved rank to the BigNumber midpoint of the ranks either side of that slot and re-sorts; for the RICH seed (ranks 1, 2, 4, 5, 6 after the delete; last item to position 2) the moved rank is 1.5, giving 1, 1.5, 2, 4, 5"
+    },
+    "ui.task_add_background": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1285950,
+      "status": "VERIFIED",
+      "value": "add task copies data.ui.background_id into the new task background_id with no fallback, together with the scheduler prefs"
+    },
+    "backup.chunk_order": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1294659,
+      "status": "VERIFIED",
+      "value": "the export writes one chunk per entry of the in-memory background collection in its order, without sorting; chunk data is that entry, with its id and rank i; an entry without a stored file or thumbnail is skipped"
+    },
+    "backup.task_placement": {
+      "member": "chunks/internal3.mjs",
+      "offset": 1294845,
+      "status": "VERIFIED",
+      "value": "each chunk tasks array holds exactly the in-memory tasks whose background_id equals that chunk background id; a task whose background is not exported is not exported"
+    },
+    "observability.error_silent_property": {
+      "member": "chunks/internal.mjs",
+      "offset": 48789,
+      "related_offsets": {
+        "chunks/internal.mjs": [
+          48327
+        ],
+        "background.mjs": [
+          10323,
+          109368
+        ]
+      },
+      "status": "VERIFIED",
+      "value": {
+        "obligation": "ERROR_SILENT_PROPERTY",
+        "resolution": "CONDITIONAL",
+        "finding": "the only code that writes a silent property onto a caught value is the base show exit rethrow, reached only with a truthy exit option or exit property; no settings-page member passes exit true or writes exit (the only ones, cnt_1163 and cnt_1373, are in background.mjs, another realm) and no bundled library names silent; premise, not proved by this audit: platform error values carry no own silent or exit property"
+      },
+      "member_sha256": "53b7a1cbe81b0c3263c5f250afc2a152dc55244b88e54480f3b0bb183f2def8c"
+    },
+    "observability.prevent_subsequent_errors": {
+      "member": "chunks/internal.mjs",
+      "offset": 48975,
+      "related_offsets": {
+        "chunks/internal.mjs": [
+          47930
+        ],
+        "chunks/internal2.mjs": [
+          165431,
+          165926,
+          168353,
+          174369
+        ],
+        "settings.mjs": [
+          193
+        ]
+      },
+      "status": "VERIFIED",
+      "value": {
+        "obligation": "PREVENT_SUBSEQUENT_ERRORS",
+        "resolution": "CONDITIONAL",
+        "finding": "the instance flag starts false with each page and is never cleared; its sole setter follows a show with the option set, whose sole caller is the startup unable-to-access-settings notice (only when prefs are unfilled); that show is visible, fullscreen and persistent, with no hide timer or close control, so a hidden gate reading proves the flag false; premise, not checked at runtime: the ribbon root loaded (ui.error_ribbon), since the page reads an absent root as hidden"
+      },
+      "member_sha256": "53b7a1cbe81b0c3263c5f250afc2a152dc55244b88e54480f3b0bb183f2def8c"
+    },
+    "observability.restore_throw_coverage": {
+      "member": "chunks/internal.mjs",
+      "offset": 106493,
+      "related_offsets": {
+        "chunks/internal.mjs": [
+          27148,
+          230657
+        ],
+        "chunks/internal3.mjs": [
+          32708,
+          54247,
+          1299357
+        ]
+      },
+      "status": "VERIFIED",
+      "value": {
+        "obligation": "RESTORE_THROW_COVERAGE",
+        "resolution": "OPEN",
+        "finding": "not every restore failure reaches a page ribbon: the settings apply runs in the background realm via the update_settings_background message (cnt_1550) and get_background, whose errors are reported there and whose replies are not checked; the sentinel deletion runs in a transitionend callback outside restore_back_up; reactions to the restored state were not enumerated and silent-option wrappers (e.g. cnt_1219, cnt_1220) were not excluded"
+      },
+      "member_sha256": "53b7a1cbe81b0c3263c5f250afc2a152dc55244b88e54480f3b0bb183f2def8c"
+    },
+    "observability.ribbon_persistence": {
+      "member": "chunks/internal2.mjs",
+      "offset": 168353,
+      "related_offsets": {
+        "chunks/internal.mjs": [
+          47930
+        ],
+        "chunks/internal2.mjs": [
+          167429
+        ]
+      },
+      "status": "VERIFIED",
+      "value": {
+        "obligation": "RIBBON_PERSISTENCE",
+        "resolution": "OPEN",
+        "finding": "a visible non-persistent report hides after hide_delay plus highlight_time (5000 plus 300 ms; restore-path sites pass no options) and a later visible show restarts the timer; the session samples every 50 ms plus one Marionette call bounded only by its 10 s timeout, so a sample gap above 5.3 s, and so a missed ribbon, is not excluded statically"
+      },
+      "member_sha256": "bfdeae22b717bc4d4fa02d05c6417f748e85b9e605a175b5192f90943c4a5a29"
+    }
+  },
+  "selectors": {
+    "ready": ".btn_w.download_back_up",
+    "hidden_roots": "link[class*=\"hidden_roots_link_\"]",
+    "loading_root": "div[class^=\"root\"][class*=\"loading_screen\"]",
+    "error_root": "div[class^=\"root\"][class*=\"error\"]",
+    "protecting": ".protecting_screen",
+    "background": ".sections.custom.backgrounds .scrollable .ui",
+    "section": ".sections.custom.backgrounds .section_content",
+    "task": ".task",
+    "upload": ".input_w.upload_box.upload_background input[type=file]",
+    "restore": "input.file.back_up",
+    "download": ".btn_w.download_back_up button.btn",
+    "delete": ".delete_background_btn",
+    "actions": ".overlay_item.btn.actions",
+    "move": ".btn_w.move_background button.btn",
+    "open_scheduler": ".btn_w.open_scheduler button.btn",
+    "add_new_task": ".btn_w.add_new_task button.btn",
+    "close_scheduler": ".btn_w.close_scheduler",
+    "custom_code": ".btn_w.custom_code button.btn",
+    "close_code_editor": ".btn_w.close_code_editor",
+    "code_editor": ".code_editor"
+  },
+  "rich_prefs": [
+    [
+      "select",
+      "options_page_theme",
+      "ruby"
+    ],
+    [
+      "select",
+      "mode",
+      "scheduled"
+    ],
+    [
+      "checkbox",
+      "slideshow",
+      true
+    ],
+    [
+      "select",
+      "background_change_effect",
+      "slide"
+    ],
+    [
+      "select",
+      "slide_direction",
+      "from_top_to_bottom"
+    ],
+    [
+      "select",
+      "background_size",
+      "fit_browser"
+    ],
+    [
+      "select",
+      "background_position",
+      "left_top"
+    ],
+    [
+      "select",
+      "background_repeat",
+      "repeat_x"
+    ],
+    [
+      "checkbox",
+      "home_btn_is_visible",
+      true
+    ],
+    [
+      "select",
+      "home_btn_position",
+      "left_bottom"
+    ],
+    [
+      "text",
+      "one_backup_file_size_in_bytes",
+      209715200
+    ]
+  ],
+  "rich_override": [
+    "background_size",
+    "stretch_browser"
+  ],
+  "rich_tasks": [
+    {
+      "background_position": 2,
+      "year": "2031",
+      "time": "12:34:56"
+    },
+    {
+      "background_position": 4,
+      "year": "2032",
+      "time": "07:08:09",
+      "day_of_the_month": "4"
+    }
+  ],
+  "not_driven": {
+    "paste_btn_is_visible": "NOT_DRIVEN_OPTIONAL_PERMISSION",
+    "allow_downloading_img_by_link": "NOT_DRIVEN_OPTIONAL_PERMISSION",
+    "clipboard_read_permission": "NOT_DRIVEN_OPTIONAL_PERMISSION",
+    "homepage": "NOT_DRIVEN_NAVIGATION_TARGET",
+    "color_of_area_around_background": "NOT_DRIVEN_NO_VERIFIED_DETERMINISTIC_SEAM",
+    "video_speed": "NOT_EXERCISED_VIDEO_ONLY",
+    "video_volume": "NOT_EXERCISED_VIDEO_ONLY",
+    "color_type": "NOT_VISIBLE_IN_SCHEDULED_MODE",
+    "shuffle_backgrounds": "NOT_VISIBLE_IN_SCHEDULED_MODE",
+    "background_change_interval": "NOT_VISIBLE_IN_SCHEDULED_MODE",
+    "keep_old_theme_backgrounds": "NOT_REPRESENTABLE_FIREFOX_6_12_1",
+    "transition_duration": "NOT_DRIVEN_NO_VERIFIED_SETTINGS_INPUT"
+  },
+  "rich_rows": {
+    "ranks": [
+      "1",
+      "1.5",
+      "2",
+      "4",
+      "5"
+    ],
+    "duplicate_content_groups": [
+      [
+        0,
+        3
+      ]
+    ],
+    "override_position": 1,
+    "facts": [
+      "ui.upload_ranks",
+      "ui.upload_first_rank",
+      "ui.background_delete",
+      "ui.move_neighbours",
+      "ui.background_render_order",
+      "backup.chunk_order",
+      "backup.task_placement",
+      "ui.task_add_background"
+    ]
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "schema": "browser-ux-replacement-runtime-issues-v2",
+  "issues": {
+    "vivaldi": [
+      {
+        "id": "VIVALDI_MAIL_STARTUP_CRASH_8_2_4133_83",
+        "replacementBrowser": "vivaldi",
+        "sourceBrowser": "chrome",
+        "feature": "mail",
+        "sourceRelationship": "Built-in Mail is a Vivaldi-specific overlay with no Chrome counterpart.",
+        "status": "HOLD_RUNTIME_OOM",
+        "signature": {
+          "product": "Vivaldi_Mac",
+          "version": "8.2.4133.83",
+          "process": "Vivaldi Helper (Renderer)",
+          "operatingSystem": "macOS 27.0.1",
+          "architecture": "arm64",
+          "exceptionType": 6,
+          "exceptionName": "EXC_BREAKPOINT",
+          "breakpointSubcode": 1,
+          "module": "Vivaldi Framework",
+          "moduleRelativeOffsetHex": "0x9017364",
+          "moduleRelativeOffsetDecimal": 151090020,
+          "absoluteAddressStable": false,
+          "symbolicated": false,
+          "dumpCount": 9,
+          "windowLocal": "approximately 2026-10-04 21:01:08 through 21:03:43",
+          "failureClass": "V8_JAVASCRIPT_OOM",
+          "rendererHeapBeforeFailure": "approximately 3.6-3.7 GiB"
+        },
+        "trigger": "Startup with the retained affected-profile Mail shared state; anonymized A4-associated indexed metadata isolates the V8 OOM.",
+        "interpretation": "Necessary and sufficient within the tested affected profile and retained shared state; cached bodies and configured-account presence are not required. Record-count scale versus malformed or pathological metadata remains unresolved. No universal message-count threshold is established.",
+        "configurationSupport": {
+          "status": "VENDOR_DOCUMENTED",
+          "url": "https://help.vivaldi.com/mail/mail-get-started/add-and-manage-mail-accounts/"
+        },
+        "evidenceRetention": "Completed CRASH1/CRASH2 preservation under manager control outside source; preserve retained crash/profile evidence across future composition cleanup. No private profile material is stored here.",
+        "blocks": [
+          "vivaldi-mail"
+        ],
+        "doesNotBlock": [
+          "vivaldi-browser-core",
+          "chrome-replacement-parity",
+          "vivaldi-application-claim",
+          "floorp-qualification",
+          "signed-application-retention",
+          "disposable-profile-characterization",
+          "off-host-managed-policy-characterization",
+          "tart-tests"
+        ],
+        "prohibitedRemediations": [
+          "mail-database-copy",
+          "mail-database-modification",
+          "mail-database-deletion",
+          "application-removal",
+          "crash-or-profile-evidence-deletion",
+          "live-mail-reenable-without-qualification"
+        ],
+        "systemTest": {
+          "lane": "SYSTEM1",
+          "automatedBaseline": "synthetic-local-tls-imap-smtp",
+          "multipleAccounts": true,
+          "disposableProfile": true,
+          "realProtonCredentials": false,
+          "managedPolicyCharacterization": "off-host-tart-only",
+          "realProtonBridge": "credentialed-manual-separate-safe-test-account-approval",
+          "tartImageCredentials": "FORBIDDEN",
+          "suite": "vivaldi-mail"
+        },
+        "capability": "vivaldi-mail",
+        "scope": "optional_overlay",
+        "evidencePreservation": {
+          "status": "COMPLETED_HOST_FORENSICS",
+          "authority": "manager-supplied-completed-CRASH1-CRASH2",
+          "privateMaterialInSource": false
+        },
+        "forensics": {
+          "classification": "NECESSARY_AND_SUFFICIENT",
+          "scope": "A4-associated IndexedDB memberships, linked message metadata and queue/filter references within the retained affected-profile shared state.",
+          "limitation": "Does not distinguish pure record-count scale from one or more malformed/pathological A4 metadata or derived-state records.",
+          "thresholdClaimed": false,
+          "configuredAccounts": 5,
+          "highVolumeAccount": {
+            "label": "A4",
+            "preFetch": "year",
+            "logicalHeaderMemberships": 205133,
+            "olderThanOneYear": 171843,
+            "olderThanOneYearPercent": "83.77",
+            "indexedDateRangeBegins": "2018-07-19",
+            "fullServerHistoryBackTo2004Downloaded": "UNPROVEN",
+            "cachedBodies": 2386,
+            "cachedBodiesOlderThanOneYear": 1958
+          },
+          "prefetchSemantics": "The interval controls automatic body prefetch, not a header/index date cutoff.",
+          "matrix": [
+            {
+              "case": "all-except-A4",
+              "configuredAccounts": 4,
+              "indexedRecords": 2680,
+              "offlineSeconds": "90.008",
+              "outcome": "STABLE_NO_V8_OOM",
+              "peakRendererRssKiB": 407792,
+              "peakV8GcUsedMB": "36.3"
+            },
+            {
+              "case": "A4-only",
+              "indexedRecords": 205133,
+              "secondsToOom": "7.164",
+              "outcome": "V8_OOM",
+              "peakRendererRssKiB": 5029664,
+              "peakV8GcUsedMB": "3677.5"
+            },
+            {
+              "case": "A4-only-cached-bodies-removed",
+              "indexedRecords": 205133,
+              "secondsToOom": "7.18",
+              "outcome": "V8_OOM",
+              "cachedBodiesRemaining": 0,
+              "indexedMetadataUnchanged": true,
+              "conclusion": "Cached bodies are not required."
+            },
+            {
+              "case": "A4-configuration-removed-metadata-retained",
+              "outcome": "V8_OOM",
+              "indexedMetadataRetained": true,
+              "accountConfigurationPresent": false,
+              "conclusion": "Account configuration presence is not required."
+            }
+          ]
+        },
+        "livePosture": {
+          "observationScope": "HISTORICAL_INCIDENT_POSTURE_SUPERSEDED_FOR_CURRENT_HOST",
+          "currentHostResolution": "mail-resolution.json",
+          "mailFeature": "DISABLED",
+          "preference": "vivaldi.features.mail = false",
+          "appliedBy": "operator-incident-response",
+          "browserUxWrites": false,
+          "cleanLaunchExitCycles": 3,
+          "mailAccountDefinitionsRetained": 5,
+          "reenable": "SEPARATE_QUALIFIED_OPERATOR_ACTION",
+          "permanentMailRejection": false
+        },
+        "operatorStrategies": [
+          {
+            "id": "browser-core-mail-disabled",
+            "description": "Use Vivaldi browser-core with Mail disabled.",
+            "appliedByBrowserUx": false
+          },
+          {
+            "id": "mail-smaller-accounts-only",
+            "description": "Use Mail for smaller accounts and handle the high-volume account elsewhere after separate qualification.",
+            "appliedByBrowserUx": false
+          },
+          {
+            "id": "separate-reduced-mail-profile",
+            "description": "Qualify a separate Mail profile with reduced account/corpus state.",
+            "appliedByBrowserUx": false
+          },
+          {
+            "id": "revisit-after-vendor-fix",
+            "description": "Revisit the high-volume account after a vendor OOM fix and qualification.",
+            "appliedByBrowserUx": false
+          },
+          {
+            "id": "bounded-reduced-corpus-experiment",
+            "description": "A future bounded experiment may search for a Mail-preserving reduced-corpus strategy.",
+            "appliedByBrowserUx": false
+          }
+        ]
+      }
+    ],
+    "floorp": []
+  }
+}

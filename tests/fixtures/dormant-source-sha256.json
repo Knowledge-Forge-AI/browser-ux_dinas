@@ -1,0 +1,11 @@
+{
+  "modules/brave-youtube.nix": "1151636454856d8a287e726abb011dfbe33b3095ca39fcafd74de978f16fc5fb",
+  "modules/brave-youtube-app-writer.sh": "575763702ba3afb86eb7b025952030ab9828cc1550a5ffde48e5b7d9c9a77d18",
+  "modules/user-home-writer-common.sh": "bc8de7573905c5ae5fa4aac581685fddfab074e77a70fe9d61c8203d02c843a0",
+  "modules/video-session.nix": "1d0ef2c8f697f9dcbfdb8e356f4851264cc13e7a8c2e71ffce04a105d71fedc9",
+  "config/brave-youtube/launcher.sh.template": "90156575eb2899f84edcf21caa9bcb04b2acd0decb005b0a2f8972d8703269b4",
+  "config/brave-youtube/theme-manifest.json": "6012e52ff053ff5bd46c2364becb09a5f077fdade67636fb43257f87a02f7af6",
+  "config/power/video-session-pmset.sudoers": "7af6e370e0a6eb21dbf292ae1540d9184a173e92970689c7017b7870472211f8",
+  "libexec/brave-youtube/generate-icon.py": "96b3e0cb5e4649780e09a1fa10ea2b7c126887a6bf1be0351d7df4af541434f3",
+  "libexec/brave-youtube/generate-theme-assets.py": "a4172d72002a146ac265ff81600fabce0a4606db284839e846e33cd3292c3138"
+}

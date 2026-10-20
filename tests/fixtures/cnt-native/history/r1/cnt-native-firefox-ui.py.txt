@@ -1,0 +1,165 @@
+"""Dispatch-only Firefox UI subset; does not establish CHARACTERIZED status.
+
+Uses Firefox's maintained Marionette protocol with a stdlib transport. Every run
+creates a new private HOME/profile. Never attaches to an existing session.
+"""
+import argparse
+import base64
+import hashlib
+import json
+import os
+from pathlib import Path
+import shutil
+import socket
+import struct
+import subprocess
+import time
+import zlib
+
+from cnt_native_evidence import read_json, require, verify_evidence
+
+
+def png(rgb):
+    def chunk(kind, data):
+        return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data))
+    return (b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 1, 1, 8, 2, 0, 0, 0))
+            + chunk(b'IDAT', zlib.compress(b'\0' + bytes(rgb))) + chunk(b'IEND', b''))
+
+
+class Marionette:
+    def __init__(self, connection):
+        self.connection = connection
+        self.connection.settimeout(30)
+        self.sequence = 0
+        require(self.receive().get('marionetteProtocol') == 3, 'Unsupported Marionette protocol')
+
+    def receive(self):
+        length = b''
+        while not length.endswith(b':'):
+            byte = self.connection.recv(1)
+            require(bool(byte) and len(length) < 12, 'Invalid Marionette framing')
+            length += byte
+        size = int(length[:-1])
+        require(0 <= size <= 1024 * 1024, 'Oversized subset response')
+        body = b''
+        while len(body) < size:
+            part = self.connection.recv(size - len(body))
+            require(bool(part), 'Marionette disconnected')
+            body += part
+        return json.loads(body)
+
+    def call(self, name, params):
+        self.sequence += 1
+        body = json.dumps([0, self.sequence, name, params]).encode()
+        self.connection.sendall(str(len(body)).encode() + b':' + body)
+        response = self.receive()
+        require(response[:2] == [1, self.sequence], 'Unexpected Marionette response')
+        require(response[2] is None, 'Native automation command failed: ' + name)
+        return response[3]
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    for name in ('evidence-root', 'binding', 'scratch', 'firefox'):
+        parser.add_argument('--' + name, type=Path, required=True)
+    parser.add_argument('--mode', choices=('seed', 'import'), required=True)
+    parser.add_argument('--input', type=Path, help='Synthetic seed result.json for import')
+    args = parser.parse_args()
+    verified = verify_evidence(args.evidence_root, read_json(args.binding))
+    require(verified['firefox']['version'] == '6.12.1', 'Wrong native version')
+    run = args.scratch.resolve()
+    require(run.is_relative_to('/Users/Shared/agent-scratch'), 'Use managed task scratch')
+    run.mkdir(mode=0o700, parents=True, exist_ok=False)
+    home, profile, temporary = (run / n for n in ('home', 'profile', 'tmp'))
+    for directory in (home, profile, temporary):
+        directory.mkdir(mode=0o700)
+    package = run / 'captured.xpi'
+    shutil.copyfile(args.evidence_root / 'firefox/clear-new-tab.xpi', package)
+    require(hashlib.sha256(package.read_bytes()).hexdigest() == verified['firefox']['digest'], 'Copied XPI changed')
+    with socket.socket() as reservation:
+        reservation.bind(('127.0.0.1', 0))
+        port = reservation.getsockname()[1]
+    preferences = {
+        'marionette.port': port, 'marionette.enabled': True,
+        'browser.shell.checkDefaultBrowser': False, 'browser.startup.page': 0,
+        'browser.startup.homepage': 'about:blank', 'browser.newtabpage.enabled': False,
+        'app.update.auto': False, 'app.update.enabled': False, 'extensions.update.enabled': False,
+        'extensions.getAddons.cache.enabled': False, 'services.sync.enabled': False,
+        'identity.fxaccounts.enabled': False, 'network.offline': True,
+        'datareporting.healthreport.uploadEnabled': False, 'toolkit.telemetry.enabled': False,
+        'browser.safebrowsing.downloads.enabled': False, 'browser.safebrowsing.malware.enabled': False,
+        'browser.safebrowsing.phishing.enabled': False,
+    }
+    (profile / 'user.js').write_text(''.join(f'user_pref({json.dumps(k)},{json.dumps(v)});\n' for k, v in preferences.items()))
+    policy = f'''(version 1)
+(allow default)
+(deny network-outbound)
+(deny network-bind (require-all (require-not (local ip "localhost:{port}")) (require-not (local unix-socket))))
+(deny file-read-data (subpath {json.dumps(str(Path.home()))}))
+(deny file-write* (require-all (require-not (subpath {json.dumps(str(run))})) (require-not (subpath "/dev"))))
+'''
+    (run / 'confinement.sb').write_text(policy)
+    env = dict(os.environ, HOME=str(home), CFFIXED_USER_HOME=str(home), TMPDIR=str(temporary),
+               MOZ_HEADLESS='1', MOZ_NO_REMOTE='1', MOZ_DISABLE_CONTENT_SANDBOX='1',
+               MOZ_DISABLE_RDD_SANDBOX='1', MOZ_DISABLE_GPU_SANDBOX='1',
+               MOZ_DISABLE_SOCKET_PROCESS_SANDBOX='1', MOZ_DISABLE_GMP_SANDBOX='1')
+    if args.mode == 'seed':
+        payload = [base64.b64encode(png(c)).decode() for c in
+                   ((255, 0, 0), (0, 255, 0), (0, 0, 255), (255, 0, 0))]
+    else:
+        require(args.input is not None, 'Import requires synthetic seed result')
+        seed = read_json(args.input)
+        require(seed.get('synthetic_only') is True, 'Not a synthetic result')
+        payload = seed['artifacts']
+    script = Path(__file__).with_suffix('.js').read_text()
+    result = None
+    with (run / 'browser.log').open('w') as log:
+        process = subprocess.Popen(['/usr/bin/sandbox-exec', '-f', str(run / 'confinement.sb'),
+                                    str(args.firefox), '--headless', '--no-remote', '-profile', str(profile),
+                                    '--marionette', '--remote-allow-system-access', 'about:blank'],
+                                   cwd=run, env=env, stdout=log, stderr=log)
+        (run / 'owned-process.json').write_text(json.dumps({'pid': process.pid}))
+        connection = None
+        try:
+            for _ in range(100):
+                require(process.poll() is None, 'Disposable Firefox exited before automation')
+                try:
+                    connection = socket.create_connection(('127.0.0.1', port), timeout=.2)
+                    break
+                except ConnectionRefusedError:
+                    time.sleep(.1)
+            require(connection is not None, 'No disposable automation connection')
+            driver = Marionette(connection)
+            driver.call('WebDriver:NewSession', {'capabilities': {}})
+            driver.call('Addon:Install', {'path': str(package), 'temporary': True})
+            driver.call('Marionette:SetContext', {'value': 'chrome'})
+            url = driver.call('WebDriver:ExecuteScript', {
+                'script': 'return WebExtensionPolicy.getByID("clear-new-tab@loftyshaky").getURL("settings.html")',
+                'args': [], 'newSandbox': True, 'sandbox': 'default'})['value']
+            driver.call('Marionette:SetContext', {'value': 'content'})
+            driver.call('WebDriver:Navigate', {'url': url})
+            result = driver.call('WebDriver:ExecuteAsyncScript', {
+                'script': script, 'args': [args.mode, payload], 'newSandbox': False,
+                'sandbox': None, 'scriptTimeout': 20000})['value']
+            require('error' not in result and bool(result.get('artifacts')), 'Native subset did not emit an artifact')
+        finally:
+            if connection is not None:
+                connection.close()
+            if process.poll() is None:
+                process.terminate()
+                try:
+                    process.wait(timeout=10)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait()
+            (run / 'owned-process.json').write_text(json.dumps({'pid': process.pid, 'exit_code': process.returncode}))
+    result.update(synthetic_only=True, status='OBSERVED_UI_SUBSET_NOT_CHARACTERIZED',
+                  mode=args.mode, package_sha256=verified['firefox']['digest'])
+    (run / 'result.json').write_text(json.dumps(result, indent=2) + '\n')
+    for index, artifact in enumerate(result['artifacts']):
+        (run / f'native-{index + 1}.json').write_bytes(artifact['text'].encode('utf-8'))
+    print('OBSERVED_UI_SUBSET_NOT_CHARACTERIZED')
+
+
+if __name__ == '__main__':
+    main()

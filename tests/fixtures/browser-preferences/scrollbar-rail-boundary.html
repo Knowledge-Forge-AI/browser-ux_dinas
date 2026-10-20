@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en" data-scene="control">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ordinary-document rail boundary investigation</title>
+<style>
+  html, body { margin: 0; width: 100%; height: 100%; }
+  body { font: 16px system-ui; color: CanvasText; background: Canvas; }
+  header { padding: 1rem; max-width: 70rem; }
+  .scroller {
+    position: fixed; top: 30vh; left: 5vw; right: 0; height: 60vh;
+    overflow-y: scroll; scrollbar-width: auto; scrollbar-color: GrayText Canvas;
+    background: Canvas; outline: 1px solid GrayText;
+  }
+  .content { height: 240vh; padding: 1rem; }
+  .ordinary-cover {
+    position: fixed; right: 0; bottom: 10vh; height: 12vh; width: 16px;
+    background: CanvasText; z-index: 2147483647;
+  }
+  /* Each adverse rule is author CSS. It never selects the candidate host. */
+  html[data-scene="after"]::after {
+    content: ""; position: fixed; right: 0; bottom: 10vh;
+    height: 12vh; width: 16px; background: CanvasText; z-index: 2147483647;
+  }
+  html[data-scene="mask"] {
+    mask-image: linear-gradient(to right, black calc(100% - 16px), transparent 0);
+  }
+  html[data-scene="clip"] { clip-path: inset(0 16px 0 0); }
+  html[data-scene="paint-only"]::after {
+    content: ""; position: fixed; right: 0; bottom: 10vh;
+    height: 12vh; width: 16px; background: CanvasText; z-index: 2147483647;
+    pointer-events: none;
+  }
+</style>
+<body>
+<header>
+  <h1>Ordinary-document rail boundary investigation</h1>
+  <p>This is an offline architecture counterexample, not R4 qualification evidence.
+    The candidate draws a closed-shadow strip but does not implement a scrollbar.
+    Native scrolling remains available in the box. No observation has been recorded.</p>
+  <p>Inline important host pins stand in for the proposed computed USER-origin pins.
+    This page cannot inject USER-origin CSS. Adverse rules target root rendering,
+    not the host declarations; inspect visually as well as using the bounded probe.</p>
+  <label>Scene
+    <select id="scene">
+      <option value="control">Control: ordinary sibling cover</option>
+      <option value="after">Root trailing box: partial 20% cover</option>
+      <option value="mask">Root alpha strip: content stays visible</option>
+      <option value="clip">Root clipped strip: content stays visible</option>
+      <option value="paint-only">Root trailing box: visual-only cover</option>
+    </select>
+  </label>
+  <button id="probe" type="button">Probe candidate</button>
+  <button id="append" type="button">Reappend candidate, then probe</button>
+  <output id="result" aria-live="polite">NOT_OBSERVED</output>
+</header>
+<div class="scroller"><div class="content">
+  Generic nested scroller. Scroll within this box; the candidate strip is illustrative only.
+</div></div>
+<div class="ordinary-cover" aria-hidden="true"></div>
+<script>
+"use strict";
+(() => {
+  const host = document.createElement("browser-ux-scrollbar-rail");
+  host.setAttribute("aria-hidden", "true");
+  const pins = {
+    all: "initial", display: "block", position: "fixed", top: "0px", left: "0px",
+    width: "0px", height: "0px", "z-index": "2147483647",
+    "pointer-events": "none", visibility: "visible", opacity: "1", zoom: "1",
+  };
+  for (const [property, value] of Object.entries(pins)) {
+    host.style.setProperty(property, value, "important");
+  }
+  const shadow = host.attachShadow({ mode: "closed" });
+  const sheet = document.createElement("style");
+  sheet.textContent = `
+    .track { position: fixed; right: 0; top: 30vh; height: 60vh; width: 16px;
+      pointer-events: auto; background: Canvas; border-left: 1px solid CanvasText;
+      box-sizing: border-box; color-scheme: light dark; }
+    .thumb { position: absolute; top: 60%; height: 25%; background: GrayText; width: 100%; }
+  `;
+  const track = document.createElement("div");
+  track.className = "track";
+  const thumb = document.createElement("div");
+  thumb.className = "thumb";
+  track.append(thumb);
+  shadow.append(sheet, track);
+  document.documentElement.append(host);
+  const result = document.getElementById("result");
+  const probe = () => {
+    const actual = getComputedStyle(host);
+    const pinsMatch = Object.entries(pins).every(([property, value]) =>
+      property === "all" || actual.getPropertyValue(property).trim() === value);
+    const rect = track.getBoundingClientRect();
+    const geometryMatches = Math.abs(rect.right - innerWidth) < 1 &&
+      Math.abs(rect.top - innerHeight * 0.3) < 1 &&
+      Math.abs(rect.height - innerHeight * 0.6) < 1 && Math.abs(rect.width - 16) < 1;
+    const hit = document.elementsFromPoint(rect.right - 8, rect.bottom - rect.height * 0.1)[0];
+    // Local booleans only. Never serialize a hit element or page attributes.
+    result.textContent = JSON.stringify({
+      pins_match: pinsMatch, geometry_matches: geometryMatches,
+      host_is_last_child: document.documentElement.lastElementChild === host,
+      pointer_target_is_host: hit === host, shadow_closed: host.shadowRoot === null,
+      visible_surface: "ATTENDED_PENDING",
+    });
+  };
+  document.getElementById("scene").addEventListener("change", (event) => {
+    document.documentElement.setAttribute("data-scene", event.target.value);
+    result.textContent = "NOT_OBSERVED";
+  });
+  document.getElementById("probe").addEventListener("click", probe);
+  document.getElementById("append").addEventListener("click", () => {
+    document.documentElement.append(host);
+    probe();
+  });
+})();
+</script>
+</body>
+</html>

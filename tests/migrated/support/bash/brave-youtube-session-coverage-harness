@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
+
+# Dispatch runner supplies a disposable HOME and recording overrides.
+: "${BUX_TEST_HOME:?fixture home required}"
+[[ "$HOME" == "$BUX_TEST_HOME" && -f "$HOME/.bux-fixture" ]] || exit 2
+for tool in BRAVE_YOUTUBE_PMSET BRAVE_YOUTUBE_SUDO BRAVE_YOUTUBE_CAFFEINATE BRAVE_YOUTUBE_OPEN BRAVE_YOUTUBE_LAUNCHCTL BRAVE_YOUTUBE_PS BRAVE_YOUTUBE_KILL; do
+  [[ -n "${!tool:-}" && "${!tool}" == "$HOME/"* ]] || exit 2
+done
+export BRAVE_YOUTUBE_SOURCE_ONLY=1
+# shellcheck source=/dev/null
+source "$repo_dir/bin/brave-youtube-session"
+
+usage >/dev/null
+script_path >/dev/null
+script_dir >/dev/null
+cdp_helper >/dev/null
+clear_new_tab_sync_helper >/dev/null
+session_running || true
+browser_profile_running || true
+profile_extension_audit >/dev/null
+cdp_port >/dev/null || true
+cdp_page_state "" >/dev/null
+cdp_media_state "" >/dev/null
+cdp_close_browser ""
+wait_for_cdp "" 1 || true
+page_state_kind "pages count=1" >/dev/null
+cleanup_stale_session
+disable_video_session_power
+cleanup_state_files
+status_session >/dev/null
